@@ -1,13 +1,18 @@
+"""
+a test script to test MWEs in the `surprisal` module
+"""
 from matplotlib import pyplot as plt
-from surprisal.model import HuggingFaceModel
+
+from surprisal import AutoHuggingFaceModel
+
+g = AutoHuggingFaceModel.from_pretrained(model_id="gpt2")
+b = AutoHuggingFaceModel.from_pretrained(model_id="bert-base-uncased")
 
 
-m = HuggingFaceModel(model_id="gpt2")
-
-
-surpgen = m.digest(
+surpgen = g.surprise(
     [
         "The cat sat on the mat.",
+        "The cat sat on the pizza.",
         "How likely is a spicy donkey?",
         "How likely is a spicy clock?",
         "How likely is a spicy dish?",
@@ -22,7 +27,11 @@ f, a = plt.subplots()
 for surp in surpgen:
     print(surp)
 
-    surp.lineplot(f, a)
+    surp.lineplot(
+        f,
+        a,
+        # cumulative=True
+    )
     # break
 
 plt.show()
