@@ -14,7 +14,19 @@ class Model(ABC):
         raise NotImplementedError
 
 
-class Surprisal(ABC):
+class SurprisalQuantity(float):
+    def __init__(self, value, text="") -> None:
+        float.__init__(value)
+        self.text = text
+
+    def __new__(self, value, text):
+        return float.__new__(self, value)
+
+    def __repr__(self) -> str:
+        return super().__repr__() + "\n" + self.text
+
+
+class SurprisalArray(ABC):
     def __index__(self):
         pass
 
@@ -28,7 +40,7 @@ class Surprisal(ABC):
 
     @property
     @abstractmethod
-    def surprisals(self):
+    def surprisals(self) -> typing.Collection[SurprisalQuantity]:
         raise NotImplementedError
 
     def lineplot(self, f=None, a=None, cumulative=False):
