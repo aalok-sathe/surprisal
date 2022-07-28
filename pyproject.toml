@@ -1,7 +1,10 @@
 [tool.poetry]
 name = "surprisal"
-version = "0.1.0"
+version = "0.1.0post1"
 description = ""
+readme = "README.md"
+homepage = "https://github.com/aalok-sathe/surprisal"
+repository = "https://github.com/aalok-sathe/surprisal"
 authors = ["aalok-sathe <asathe@mit.edu>"]
 license = "MIT"
 
