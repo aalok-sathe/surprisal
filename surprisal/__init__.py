@@ -3,3 +3,5 @@ from surprisal.model import (
     CausalHuggingFaceModel,
     MaskedHuggingFaceModel,
 )
+
+from surprisal.interface import SurprisalQuantity
