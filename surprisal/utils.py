@@ -20,7 +20,7 @@ def pick_matching_token_ixs(
     """
     span_of_interest = slice(
         span_of_interest.start or 0,
-        span_of_interest.stop,
+        span_of_interest.stop or len(encoding.ids),
         span_of_interest.step,
     )
 
