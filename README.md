@@ -34,6 +34,26 @@ and outputs the following:
      3.998      6.856      0.619      4.115      7.612      3.031      4.817      1.233      7.033 
 ```
 
+A surprisal object can be aggregated over a subset of tokens that best match a span of words or characters. 
+Word boundaries are inherited from the model's standard tokenizer, and may not be consistent across models,
+so using character spans is the default and recommended option.
+Surprisals are in log space, and therefore added over tokens during aggregation.  For example:
+```python
+>>> [s] = m.surprise("The cat is on the mat")
+>>> s[3:6, "word"] 
+12.343366384506226
+Ġon Ġthe Ġmat
+>>> s[3:6, "char"]
+9.222099304199219
+Ġcat
+>>> s[3:6]
+9.222099304199219
+Ġcat
+>>> s[1, "word"]
+9.222099304199219
+Ġcat
+```
+
 You can also call `Surprisal.lineplot()` to visualize the surprisals:
 
 ```python
@@ -49,5 +69,28 @@ plt.show()
 ![](https://i.imgur.com/HusVOUq.png)
 
 
+`surprisal` also has a minimal CLI:
+```python
+python -m surprisal -m distilgpt2 "I went to the train station today."
+      I      Ġwent        Ġto       Ġthe     Ġtrain   Ġstation     Ġtoday          . 
+  4.984      5.729      0.812      1.723      7.317      0.497      4.600      2.528 
+
+python -m surprisal -m distilgpt2 "I went to the space station today."
+      I      Ġwent        Ġto       Ġthe     Ġspace   Ġstation     Ġtoday          . 
+  4.984      5.729      0.812      1.723      8.425      0.707      5.182      2.574
+```
+
+
 ## installing
 `pip install surprisal`
+
+
+## acknowledgments
+
+Inspired from the now-inactive [`lm-scorer`](https://github.com/simonepri/lm-scorer); thanks to
+folks from [CPLlab](http://cpl.mit.edu/) (particularly, Peng Qian) for comments and help.
+
+
+## license 
+[MIT License](./LICENSE).
+(C) 2022, Aalok S.
