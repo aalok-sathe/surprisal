@@ -52,9 +52,12 @@ class HuggingFaceSurprisal(SurprisalArray):
         Returns:
             float: the aggregated surprisal over the word span
         """
-        slc, slctype = slctup
-        if slctype not in ("word", "char"):
-            raise ValueError(f"unrecognized slice type {slctype}")
+        try:
+            slc, slctype = slctup
+            if slctype not in ("word", "char"):
+                raise ValueError(f"unrecognized slice type {slctype}")
+        except TypeError:
+            slc, slctype = slctup, "char"
 
         if slctype == "char":
             fn = partial(pick_matching_token_ixs, span_type="char")
@@ -169,7 +172,10 @@ class MaskedHuggingFaceModel(HuggingFaceModel):
         super().__init__(model_id, model_class=AutoModelForMaskedLM)
 
     def surprise(
-        self, textbatch: typing.Union[typing.List, str]
+        self,
+        textbatch: typing.Union[typing.List, str],
+        bidirectional=False,
+        fixed_length=False,
     ) -> HuggingFaceSurprisal:
         import torch
 
