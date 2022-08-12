@@ -2,11 +2,17 @@
 from collections import Counter
 from functools import partial
 import argparse
+import hashlib
+import typing
 
 from matplotlib import pyplot as plt
 import pandas as pd
 from tqdm.auto import tqdm
 import surprisal
+
+
+def cheap_hash(thing: typing.Any, n=6):
+    return hashlib.md5(thing).hexdigest()[:n]
 
 
 def main():
@@ -46,17 +52,20 @@ def main():
     all_df = pd.DataFrame({"an": list(set(all_pairs))})
     all_df
 
-    # %%
+    prefix = "How likely is this: "
+    suffix = ""
     surprisals = [
         *map(
-            partial(model.extract_surprisal, prefix="How likely is this: ", suffix=""),
+            partial(model.extract_surprisal, prefix=prefix, suffix=suffix),
             tqdm(all_df.an.iloc[:]),
         )
     ]
 
+    all_df["prefix"] = prefix
+    all_df["suffix"] = suffix
     all_df[args.model_name_or_path] = surprisals
     all_df.to_csv(
-        f"{args.output_dir}/vecchi2016_an_surprisals_{args.model_name_or_path}.csv"
+        f"{args.output_dir}/vecchi2016_an_surprisals_{args.model_name_or_path}_{cheap_hash(prefix+suffix)}.csv"
     )
 
 
