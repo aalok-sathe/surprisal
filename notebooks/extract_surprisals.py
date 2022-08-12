@@ -34,26 +34,37 @@ def main():
         help="huggingface model type",
     )
     parser.add_argument("--output_dir", type=str, default=".", help="output directory")
+    parser.add_argument(
+        "--prefix",
+        default="How likely is this: ",
+        type=str,
+        help="string to use as prefix for each AN pair to obtain surprisal",
+    )
+    parser.add_argument(
+        "--suffix",
+        default="",
+        type=str,
+        help="string to use as suffix for each AN pair to obtain surprisal",
+    )
 
     args = parser.parse_args()
+
+    prefix = args.prefix
+    suffix = args.suffix
 
     model = surprisal.AutoHuggingFaceModel.from_pretrained(
         args.model_name_or_path, model_class=args.model_class
     )
 
-    # %%
     df = pd.read_csv("vecchi2016_an_data_cogsci/annotations.csv")[
         ["unit_id", "which_makes_more_sense", "an1", "an2"]
     ]
     df.head(4)
 
-    # %%
     all_pairs = df.an1.to_list() + df.an2.to_list()
     all_df = pd.DataFrame({"an": list(set(all_pairs))})
     all_df
 
-    prefix = "How likely is this: "
-    suffix = ""
     surprisals = [
         *map(
             partial(model.extract_surprisal, prefix=prefix, suffix=suffix),
@@ -63,7 +74,7 @@ def main():
 
     all_df["prefix"] = prefix
     all_df["suffix"] = suffix
-    all_df[args.model_name_or_path] = surprisals
+    all_df[args.model_name_or_path] = list(map(float, surprisals))
     all_df.to_csv(
         f"{args.output_dir}/vecchi2016_an_surprisals_{args.model_name_or_path}_{cheap_hash(prefix+suffix)}.csv"
     )
