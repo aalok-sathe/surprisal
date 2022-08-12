@@ -72,7 +72,7 @@ class HuggingFaceSurprisal(SurprisalArray):
             self.surprisals[token_slc].sum(), " ".join(self.tokens[token_slc])
         )
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         numfmt = "{: >10.3f}"
         strfmt = "{: >10}"
         accumulator = ""
@@ -112,6 +112,26 @@ class HuggingFaceModel(Model):
         self, textbatch: typing.Union[typing.List, str]
     ) -> HuggingFaceSurprisal:
         raise NotImplementedError
+
+    def extract_surprisal(
+        self,
+        phrases: typing.Union[str, typing.Collection[str]] = None,
+        prefix="",
+        suffix="",
+    ) -> float:
+        """
+        Extracts the surprisal of the phrase given the prefix and suffix by making a call to
+        `HuggingFaceSurprisal` __getitem__ object. No whitespaces or delimiters are added to
+        the prefix or suffix, so make sure to provide an exact string formatted appropriately.
+        """
+        if type(phrases) is str:
+            phrases = [phrases]
+        if phrases is None:
+            raise ValueError("please provide a phrase to extract the surprisal of")
+        textbatch = map(lambda x: str(prefix) + str(x) + str(suffix), phrases)
+        slices = map(lambda x: slice(len(prefix), len(prefix + x)), phrases)
+        surprisals = self.surprise([*textbatch])
+        return [surp[slc, "char"] for surp, slc in zip(surprisals, slices)]
 
 
 class CausalHuggingFaceModel(HuggingFaceModel):
