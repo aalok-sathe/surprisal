@@ -118,7 +118,7 @@ class HuggingFaceModel(Model):
         phrases: typing.Union[str, typing.Collection[str]] = None,
         prefix="",
         suffix="",
-    ) -> float:
+    ) -> typing.List[float]:
         """
         Extracts the surprisal of the phrase given the prefix and suffix by making a call to
         `HuggingFaceSurprisal` __getitem__ object. No whitespaces or delimiters are added to
