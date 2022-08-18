@@ -11,8 +11,8 @@ from tqdm.auto import tqdm
 import surprisal
 
 
-def cheap_hash(thing: typing.Any, n=6):
-    return hashlib.md5(thing).hexdigest()[:n]
+def cheap_hash(thing: str, n=6):
+    return hashlib.md5(thing.encode("utf-8")).hexdigest()[:n].upper()
 
 
 def main():
@@ -46,6 +46,11 @@ def main():
         type=str,
         help="string to use as suffix for each AN pair to obtain surprisal",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="whether to run only a small number of samples for testing purposes"
+    )
 
     args = parser.parse_args()
 
@@ -59,11 +64,13 @@ def main():
     df = pd.read_csv("vecchi2016_an_data_cogsci/annotations.csv")[
         ["unit_id", "which_makes_more_sense", "an1", "an2"]
     ]
-    df.head(4)
+    # df.head(4)
 
     all_pairs = df.an1.to_list() + df.an2.to_list()
-    all_df = pd.DataFrame({"an": list(set(all_pairs))})
-    all_df
+    all_df = pd.DataFrame({"an": list(sorted(set(all_pairs)))})
+    
+    if args.debug:
+        all_df = all_df.iloc[:32].copy()
 
     surprisals = [
         *map(
@@ -74,7 +81,7 @@ def main():
 
     all_df["prefix"] = prefix
     all_df["suffix"] = suffix
-    all_df[args.model_name_or_path] = list(map(float, surprisals))
+    all_df[args.model_name_or_path] = list(map(lambda x: float(x[0]), surprisals))
     all_df.to_csv(
         f"{args.output_dir}/vecchi2016_an_surprisals_{args.model_name_or_path}_{cheap_hash(prefix+suffix)}.csv"
     )
