@@ -82,7 +82,7 @@ def main():
     all_df["suffix"] = suffix
     all_df[args.model_name_or_path] = list(map(lambda x: float(x[0]), surprisals))
     all_df.to_csv(
-        f"{args.output_dir}/vecchi2016_an_surprisals_{args.model_name_or_path}_{cheap_hash(prefix+suffix)}.csv"
+        f"{args.output_dir}/vecchi2016_n_surprisals_{args.model_name_or_path}_{cheap_hash(prefix+suffix)}.csv"
     )
 
 
