@@ -68,16 +68,15 @@ def main():
 
     all_pairs = df.an1.to_list() + df.an2.to_list()
     all_df = pd.DataFrame({"an": list(sorted(set(all_pairs)))})
-    
+
     if args.debug:
         all_df = all_df.iloc[:32].copy()
 
-    surprisals = [
-        *map(
-            partial(model.extract_surprisal, prefix=prefix, suffix=suffix),
-            tqdm(all_df.an.iloc[:]),
-        )
-    ]
+    surprisals = []
+    for an in tqdm(all_df.an.iloc[:]):
+        a, n = an.split(" ")
+        fn = partial(model.extract_surprisal, prefix=prefix + a + " ", suffix=suffix)
+        surprisals += [fn(n)]
 
     all_df["prefix"] = prefix
     all_df["suffix"] = suffix
