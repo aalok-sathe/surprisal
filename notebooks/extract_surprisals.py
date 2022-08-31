@@ -49,7 +49,7 @@ def main():
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="whether to run only a small number of samples for testing purposes"
+        help="whether to run only a small number of samples for testing purposes",
     )
 
     args = parser.parse_args()
