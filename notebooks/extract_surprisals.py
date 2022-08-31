@@ -70,7 +70,7 @@ def main():
     all_df = pd.DataFrame({"an": list(sorted(set(all_pairs)))})
 
     if args.debug:
-        all_df = all_df.iloc[:32].copy()
+        all_df = all_df.iloc[:1024].copy()
 
     surprisals = []
     for an in tqdm(all_df.an.iloc[:]):
@@ -80,9 +80,11 @@ def main():
 
     all_df["prefix"] = prefix
     all_df["suffix"] = suffix
-    all_df[args.model_name_or_path] = list(map(lambda x: float(x[0]), surprisals))
+    all_df[args.model_name_or_path.replace("/", "-")] = list(
+        map(lambda x: float(x[0]), surprisals)
+    )
     all_df.to_csv(
-        f"{args.output_dir}/vecchi2016_n_surprisals_{args.model_name_or_path}_{cheap_hash(prefix+suffix)}.csv"
+        f"{args.output_dir}/vecchi2016_an_surprisals_{args.model_name_or_path.replace('/', '-')}_{cheap_hash(prefix+suffix)}.csv"
     )
 
 
