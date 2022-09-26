@@ -22,7 +22,7 @@ def main():
         "--model_name_or_path",
         type=str,
         required=True,
-        help="huggingface model id to use for extracting surprisals",
+        help="model id to use for extracting surprisals. this may either be the huggingface model ID or an OpenAI model ID",
     )
     parser.add_argument(
         "-c",
@@ -30,8 +30,8 @@ def main():
         type=str,
         required=False,
         default=None,
-        choices=["bert", "gpt"],
-        help="huggingface model type",
+        choices=["bert", "gpt", "gpt3"],
+        help="model type/class. 'bert' and 'gpt' are two broad model classes for huggingface models. 'gpt3' is for gpt3-like models accessed using the OpenAI API",
     )
     parser.add_argument("--output_dir", type=str, default=".", help="output directory")
     parser.add_argument(
@@ -70,11 +70,13 @@ def main():
     all_df = pd.DataFrame({"an": list(sorted(set(all_pairs)))})
 
     if args.debug:
-        all_df = all_df.iloc[:1024].copy()
+        all_df = all_df.iloc[:128].copy()
 
     surprisals = []
     for an in tqdm(all_df.an.iloc[:]):
         a, n = an.split(" ")
+        # NOTE: crucially, we include here the 'a' as part of the prefix so that
+        # only the surprisal for the 'n' is extracted
         fn = partial(model.extract_surprisal, prefix=prefix + a + " ", suffix=suffix)
         surprisals += [fn(n)]
 
