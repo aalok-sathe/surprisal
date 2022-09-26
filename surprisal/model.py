@@ -269,22 +269,31 @@ class OpenAIModel(HuggingFaceModel):
     smaller parts of the text.
     """
 
-    def __init__(self, model_id="text-davinci-002", openai_api_key=None) -> None:
+    def __init__(
+        self, model_id="text-davinci-002", openai_api_key=None, openai_org=None
+    ) -> None:
         import os
 
-        self.API_KEY = openai_api_key or os.environ.get("OPENAI_API_KEY", None)
-        if self.API_KEY is None:
+        self.OPENAI_API_KEY = openai_api_key or os.environ.get("OPENAI_API_KEY", None)
+        if self.OPENAI_API_KEY is None:
             raise ValueError(
                 "Error: no openAI API key provided. Please pass it in "
-                "as a kwarg or specify the environment variable OPENAI_API_KEY"
+                "as a kwarg (`openai_api_key=...`) or specify the environment variable OPENAI_API_KEY"
+            )
+        self.OPENAI_ORG = openai_org or os.environ.get("OPENAI_ORG", None)
+        if self.OPENAI_ORG is None:
+            raise ValueError(
+                "Error: no openAI organization ID provided. Please pass it in "
+                "as a kwarg (`openai_org=...`) or specify the environment variable OPENAI_ORG"
             )
 
         self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.request_kws = dict(
             engine=model_id,
             prompt=None,
             temperature=0.5,
-            max_tokens=1,
+            max_tokens=0,
             top_p=1.0,
             frequency_penalty=0.0,
             presence_penalty=0.0,
@@ -295,12 +304,14 @@ class OpenAIModel(HuggingFaceModel):
     def surprise(
         self, textbatch: typing.Union[typing.List, str]
     ) -> typing.List[HuggingFaceSurprisal]:
-
         import openai
 
-        tokenized = self.tokenize(textbatch)
+        openai.organization = self.OPENAI_ORG
+        openai.api_key = self.OPENAI_API_KEY
 
+        tokenized = self.tokenize(textbatch)
         self.request_kws["prompt"] = textbatch
+
         response = openai.Completion.create(**self.request_kws)
         batched = response["choices"]
 
