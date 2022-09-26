@@ -88,7 +88,7 @@ python -m surprisal -m distilgpt2 "I went to the space station today."
 ## acknowledgments
 
 Inspired from the now-inactive [`lm-scorer`](https://github.com/simonepri/lm-scorer); thanks to
-folks from [CPLlab](http://cpl.mit.edu/) (particularly, Peng Qian) for comments and help.
+folks from [CPLlab](http://cpl.mit.edu) and [EvLab](https://evlab.mit.edu) (particularly, Peng Qian) for comments and help.
 
 
 ## license 
