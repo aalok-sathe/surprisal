@@ -256,3 +256,71 @@ class AutoHuggingFaceModel(Model):
                 f'"{model_id}" and model_class="{model_class}". '
                 f'Please explicitly pass either "gpt" or "bert" as model_class.'
             )
+
+
+class OpenAIModel(HuggingFaceModel):
+    """
+    A class to support using black-box language models for surprisal
+    through the OpenAI API (GPT3 family of models). These models have
+    a different method of obtaining surprisals, since the model is not
+    locally hosted. GPT3 uses the same tokenizer as GPT2, however,
+    so we can directly feed into HuggingFaceSurprisal and benefit from
+    the same tools as the Huggingface models to extract surprisal for
+    smaller parts of the text.
+    """
+
+    def __init__(
+        self, model_id="text-davinci-002", openai_api_key=None, openai_org=None
+    ) -> None:
+        import os
+
+        self.OPENAI_API_KEY = openai_api_key or os.environ.get("OPENAI_API_KEY", None)
+        if self.OPENAI_API_KEY is None:
+            raise ValueError(
+                "Error: no openAI API key provided. Please pass it in "
+                "as a kwarg (`openai_api_key=...`) or specify the environment variable OPENAI_API_KEY"
+            )
+        self.OPENAI_ORG = openai_org or os.environ.get("OPENAI_ORG", None)
+        if self.OPENAI_ORG is None:
+            raise ValueError(
+                "Error: no openAI organization ID provided. Please pass it in "
+                "as a kwarg (`openai_org=...`) or specify the environment variable OPENAI_ORG"
+            )
+
+        self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.request_kws = dict(
+            engine=model_id,
+            prompt=None,
+            temperature=0.5,
+            max_tokens=0,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            logprobs=1,
+            echo=True,
+        )
+
+    def surprise(
+        self, textbatch: typing.Union[typing.List, str]
+    ) -> typing.List[HuggingFaceSurprisal]:
+        import openai
+
+        openai.organization = self.OPENAI_ORG
+        openai.api_key = self.OPENAI_API_KEY
+
+        tokenized = self.tokenize(textbatch)
+        self.request_kws["prompt"] = textbatch
+
+        response = openai.Completion.create(**self.request_kws)
+        batched = response["choices"]
+
+        # b stands for an individual item in the batch; each sentence is one item
+        # since this is an autoregressive model
+        accumulator = []
+        for b in range(len(batched)):
+            logprobs = np.array(batched[b]["logprobs"]["token_logprobs"], dtype=float)
+            accumulator += [
+                HuggingFaceSurprisal(tokens=tokenized[b], surprisals=-logprobs)
+            ]
+        return accumulator
