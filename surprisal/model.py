@@ -256,3 +256,60 @@ class AutoHuggingFaceModel(Model):
                 f'"{model_id}" and model_class="{model_class}". '
                 f'Please explicitly pass either "gpt" or "bert" as model_class.'
             )
+
+
+class OpenAIModel(HuggingFaceModel):
+    """
+    A class to support using black-box language models for surprisal
+    through the OpenAI API (GPT3 family of models). These models have
+    a different method of obtaining surprisals, since the model is not
+    locally hosted. GPT3 uses the same tokenizer as GPT2, however,
+    so we can directly feed into HuggingFaceSurprisal and benefit from
+    the same tools as the Huggingface models to extract surprisal for
+    smaller parts of the text.
+    """
+
+    def __init__(self, model_id="text-davinci-002", openai_api_key=None) -> None:
+        import os
+
+        self.API_KEY = openai_api_key or os.environ.get("OPENAI_API_KEY", None)
+        if self.API_KEY is None:
+            raise ValueError(
+                "Error: no openAI API key provided. Please pass it in "
+                "as a kwarg or specify the environment variable OPENAI_API_KEY"
+            )
+
+        self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
+        self.request_kws = dict(
+            engine=model_id,
+            prompt=None,
+            temperature=0.5,
+            max_tokens=1,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            logprobs=1,
+            echo=True,
+        )
+
+    def surprise(
+        self, textbatch: typing.Union[typing.List, str]
+    ) -> typing.List[HuggingFaceSurprisal]:
+
+        import openai
+
+        tokenized = self.tokenize(textbatch)
+
+        self.request_kws["prompt"] = textbatch
+        response = openai.Completion.create(**self.request_kws)
+        batched = response["choices"]
+
+        # b stands for an individual item in the batch; each sentence is one item
+        # since this is an autoregressive model
+        accumulator = []
+        for b in range(len(batched)):
+            logprobs = np.array(batched[b]["logprobs"]["token_logprobs"], dtype=float)
+            accumulator += [
+                HuggingFaceSurprisal(tokens=tokenized[b], surprisals=-logprobs)
+            ]
+        return accumulator
