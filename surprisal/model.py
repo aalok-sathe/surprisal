@@ -11,7 +11,7 @@ from transformers import (
     PreTrainedModel,
 )
 
-from surprisal.utils import pick_matching_token_ixs
+from surprisal.utils import pick_matching_token_ixs, openai_models_list
 from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
 
 logger = logging.getLogger(name="surprisal")
@@ -227,37 +227,6 @@ class MaskedHuggingFaceModel(HuggingFaceModel):
         raise NotImplementedError
 
 
-class AutoHuggingFaceModel(Model):
-    """
-    Factory class for initializing surprisal models based on HuggingFace transformers
-    """
-
-    def __init__(self) -> None:
-        """
-        this `__init__` method does nothing; the correct way to use this
-        class is using the `from_pretrained` classmethod.
-        """
-
-    @classmethod
-    def from_pretrained(cls, model_id, model_class: str = None) -> HuggingFaceModel:
-
-        model_class = model_class or ""
-        if "gpt" in model_class.lower() + " " + model_id.lower():
-            hfm = CausalHuggingFaceModel(model_id)
-            # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
-            hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
-            return hfm
-        elif "bert" in model_class.lower() + " " + model_id.lower():
-            hfm = MaskedHuggingFaceModel(model_id)
-            return hfm
-        else:
-            raise ValueError(
-                f"unable to determine appropriate model class based for model_id="
-                f'"{model_id}" and model_class="{model_class}". '
-                f'Please explicitly pass either "gpt" or "bert" as model_class.'
-            )
-
-
 class OpenAIModel(HuggingFaceModel):
     """
     A class to support using black-box language models for surprisal
@@ -324,3 +293,47 @@ class OpenAIModel(HuggingFaceModel):
                 HuggingFaceSurprisal(tokens=tokenized[b], surprisals=-logprobs)
             ]
         return accumulator
+
+
+class AutoTransformerModel(Model):
+    """
+    Factory class for initializing surprisal models based on transformers, either Huggingface or OpenAI
+    """
+
+    def __init__(self) -> None:
+        """
+        this `__init__` method does nothing; the correct way to use this
+        class is using the `from_pretrained` classmethod.
+        """
+
+    @classmethod
+    def from_pretrained(
+        cls, model_id, model_class: str = None, **kwargs
+    ) -> typing.Union[HuggingFaceModel, OpenAIModel]:
+        """
+        kwargs gives the user an opportunity to specify
+        the OpenAI API key and organization information
+        """
+
+        model_class = model_class or ""
+        if (
+            "gpt3" in model_class.lower() + " " + model_id.lower()
+            or model_id.lower() in openai_models_list
+        ):
+            return OpenAIModel(model_id, **kwargs)
+        elif "gpt" in model_class.lower() + " " + model_id.lower():
+            hfm = CausalHuggingFaceModel(model_id)
+            # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
+            hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
+            return hfm
+        elif "bert" in model_class.lower() + " " + model_id.lower():
+            return MaskedHuggingFaceModel(model_id)
+        else:
+            raise ValueError(
+                f"unable to determine appropriate model class based for model_id="
+                f'"{model_id}" and model_class="{model_class}". '
+                f'Please explicitly pass either "gpt" or "bert" as model_class.'
+            )
+
+
+AutoHuggingFaceModel = AutoTransformerModel
