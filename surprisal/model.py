@@ -17,6 +17,11 @@ from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
 logger = logging.getLogger(name="surprisal")
 
 
+###############################################################################
+### surprisal container classes
+###############################################################################
+
+
 class HuggingFaceSurprisal(SurprisalArray):
     def __init__(
         self,
@@ -84,7 +89,15 @@ class HuggingFaceSurprisal(SurprisalArray):
         return accumulator
 
 
+###############################################################################
+### model classes to compute surprisal
+###############################################################################
 class HuggingFaceModel(Model):
+    """
+    A class to support language models hosted on the Huggingface Hub
+    identified by a model ID
+    """
+
     def __init__(self, model_id: str, model_class: typing.Callable) -> None:
         super().__init__(model_id)
 
@@ -137,10 +150,11 @@ class HuggingFaceModel(Model):
 class CausalHuggingFaceModel(HuggingFaceModel):
     def __init__(self, model_id=None) -> None:
         super().__init__(model_id, model_class=AutoModelForCausalLM)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
         self, textbatch: typing.Union[typing.List, str]
-    ) -> HuggingFaceSurprisal:
+    ) -> typing.List[HuggingFaceSurprisal]:
         import torch
 
         tokenized = self.tokenize(textbatch)
@@ -170,7 +184,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
 
         # for CausalLMs, we pick one before the current word to get surprisal of the current word in
         # context of the previous word. otherwise we would be reading off the surprisal of current
-        # word given the current word plus context, which would always be high.
+        # word given the current word plus context, which would always be high due to non-repetition.
         logprobs = (
             logsoftmax[:, :-1, :].gather(2, tokenized.input_ids.unsqueeze(2)).squeeze(2)
         )
@@ -229,13 +243,11 @@ class AutoHuggingFaceModel(Model):
 
         model_class = model_class or ""
         if "gpt" in model_class.lower() + " " + model_id.lower():
-            model_class = AutoModelForCausalLM
             hfm = CausalHuggingFaceModel(model_id)
             # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
         elif "bert" in model_class.lower() + " " + model_id.lower():
-            model_class = AutoModelForMaskedLM
             hfm = MaskedHuggingFaceModel(model_id)
             return hfm
         else:
