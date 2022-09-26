@@ -1,6 +1,6 @@
 from surprisal.model import (
     AutoHuggingFaceModel,
-    AutoTransformerFaceModel,
+    AutoTransformerModel,
     CausalHuggingFaceModel,
     MaskedHuggingFaceModel,
     OpenAIModel,
