@@ -1,6 +1,13 @@
 # surprisal
 Compute surprisal from language models!
 
+`surprisal` supports most Causal Language Models (`GPT2`- and `GPTneo`-like models) from Huggingface or local checkpoint, 
+as well as `GPT3` models from OpenAI using their API!
+
+Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time. 
+
+## Usage
+
 The snippet below computes per-token surprisals for a list of sentences
 ```python
 from surprisal import AutoHuggingFaceModel
@@ -18,7 +25,7 @@ m = AutoHuggingFaceModel.from_pretrained('gpt2')
 for result in m.surprise(sentences):
     print(result)
 ```
-and outputs the following:
+and produces output of this sort:
 ```
        The       Ġcat        Ġis        Ġon       Ġthe       Ġmat  
      3.276      9.222      2.463      4.145      0.961      7.237  
@@ -34,9 +41,11 @@ and outputs the following:
      3.998      6.856      0.619      4.115      7.612      3.031      4.817      1.233      7.033 
 ```
 
+### extracting surprisal over a substring
+
 A surprisal object can be aggregated over a subset of tokens that best match a span of words or characters. 
 Word boundaries are inherited from the model's standard tokenizer, and may not be consistent across models,
-so using character spans is the default and recommended option.
+so using character spans when slicing is the default and recommended option.
 Surprisals are in log space, and therefore added over tokens during aggregation.  For example:
 ```python
 >>> [s] = m.surprise("The cat is on the mat")
@@ -49,10 +58,22 @@ Surprisals are in log space, and therefore added over tokens during aggregation.
 >>> s[3:6]
 9.222099304199219
 Ġcat
->>> s[1, "word"]
-9.222099304199219
-Ġcat
 ```
+
+### GPT-3 using OpenAI API
+
+In order to use a GPT-3 model from OpenAI's API, you will need to obtain your organization ID and user-specific API key using your account.
+Then, use the `OpenAIModel` in the same way as a Huggingface model.
+
+```python
+
+import surprisal
+m = surprisal.OpenAIModel(model_id='text-davinci-002',
+                          openai_api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
+                          openai_org="org-xxxxxxxxxxxxxxxxxxxxxxxx")
+```
+
+These values can also be passed using environment variables, `OPENAI_API_KEY` and `OPENAI_ORG` before calling a script.
 
 You can also call `Surprisal.lineplot()` to visualize the surprisals:
 
@@ -88,7 +109,7 @@ python -m surprisal -m distilgpt2 "I went to the space station today."
 ## acknowledgments
 
 Inspired from the now-inactive [`lm-scorer`](https://github.com/simonepri/lm-scorer); thanks to
-folks from [CPLlab](http://cpl.mit.edu) and [EvLab](https://evlab.mit.edu) (particularly, Peng Qian) for comments and help.
+folks from [CPLlab](http://cpl.mit.edu) and [EvLab](https://evlab.mit.edu) for comments and help.
 
 
 ## license 
