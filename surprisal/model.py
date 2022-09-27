@@ -153,21 +153,26 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
-        self, textbatch: typing.Union[typing.List, str]
+        self,
+        textbatch: typing.Union[typing.List, str],
+        use_bos_token=True,
     ) -> typing.List[HuggingFaceSurprisal]:
         import torch
 
         tokenized = self.tokenize(textbatch)
 
-        ids = torch.concat(
-            (
-                torch.tensor([self.tokenizer.bos_token_id])
-                .view(1, -1)
-                .repeat(tokenized.input_ids.shape[0], 1),
-                tokenized.input_ids,
-            ),
-            dim=1,
-        )
+        if use_bos_token:
+            ids = torch.concat(
+                (
+                    torch.tensor([self.tokenizer.bos_token_id])
+                    .view(1, -1)
+                    .repeat(tokenized.input_ids.shape[0], 1),
+                    tokenized.input_ids,
+                ),
+                dim=1,
+            )
+        else:
+            ids = tokenized.input_ids
 
         with torch.no_grad():
             output = self.model(
@@ -177,6 +182,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
 
         # b, n, V
         logits = output["logits"]
+        b, n, V = logits.shape
         # we don't want the pad token to shift the probability distribution,
         # so we set its weight to -inf
         logits[:, :, self.tokenizer.pad_token_id] = -float("inf")
@@ -186,8 +192,16 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         # context of the previous word. otherwise we would be reading off the surprisal of current
         # word given the current word plus context, which would always be high due to non-repetition.
         logprobs = (
-            logsoftmax[:, :-1, :].gather(2, tokenized.input_ids.unsqueeze(2)).squeeze(2)
+            logsoftmax[:, :-1, :]
+            .gather(
+                2,
+                tokenized.input_ids[:, not use_bos_token :].unsqueeze(2),
+            )
+            .squeeze(2)
         )
+        if not use_bos_token:
+            # padding to the left with a NULL because we removed the BOS token
+            logprobs = torch.concat((torch.ones(b, 1) * torch.nan, logprobs), dim=1)
 
         # b stands for an individual item in the batch; each sentence is one item
         # since this is an autoregressive model
