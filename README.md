@@ -102,16 +102,16 @@ python -m surprisal -m distilgpt2 "I went to the space station today."
 ```
 
 
-## installing
+## Installing
 `pip install surprisal`
 
 
-## acknowledgments
+## Acknowledgments
 
 Inspired from the now-inactive [`lm-scorer`](https://github.com/simonepri/lm-scorer); thanks to
 folks from [CPLlab](http://cpl.mit.edu) and [EvLab](https://evlab.mit.edu) for comments and help.
 
 
-## license 
+## License 
 [MIT License](./LICENSE).
 (C) 2022, Aalok S.
