@@ -285,14 +285,23 @@ class OpenAIModel(HuggingFaceModel):
         )
 
     def surprise(
-        self, textbatch: typing.Union[typing.List, str]
+        self,
+        textbatch: typing.Union[typing.List, str],
+        use_bos_token=True,
     ) -> typing.List[HuggingFaceSurprisal]:
         import openai
 
         openai.organization = self.OPENAI_ORG
         openai.api_key = self.OPENAI_API_KEY
 
-        tokenized = self.tokenize(textbatch)
+        if type(textbatch) is str:
+            textbatch: typing.List[str] = [textbatch]
+
+        tokenized = self.tokenizer(textbatch)
+        if use_bos_token:
+            # if using BOS token, prepend each line with the BOS token
+            textbatch = list(map(lambda s: self.tokenizer.bos_token + s, textbatch))
+
         self.request_kws["prompt"] = textbatch
 
         response = openai.Completion.create(**self.request_kws)
@@ -303,8 +312,19 @@ class OpenAIModel(HuggingFaceModel):
         accumulator = []
         for b in range(len(batched)):
             logprobs = np.array(batched[b]["logprobs"]["token_logprobs"], dtype=float)
+            tokens = batched[b]["logprobs"]["tokens"]
+
+            assert (
+                len(tokens) == len(tokenized[b]) + use_bos_token
+            ), f"Length mismatch in tokenization by GPT2 tokenizer `{tokenized[b]}` and tokens returned by OpenAI GPT-3 API `{tokens}`"
+
             accumulator += [
-                HuggingFaceSurprisal(tokens=tokenized[b], surprisals=-logprobs)
+                HuggingFaceSurprisal(
+                    # we have already excluded it from the tokenized object earlier
+                    tokens=tokenized[b],
+                    # if using BOS token, exclude it
+                    surprisals=-logprobs[use_bos_token:],
+                )
             ]
         return accumulator
 
