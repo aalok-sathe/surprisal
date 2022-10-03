@@ -28,6 +28,21 @@ if __name__ == "__main__":
         action="store_true",
         help="whether we should plot the surprisals using matplotlib",
     )
+    parser.add_argument(
+        '--no_bos_token',
+        action='store_true',
+        help='Do not use BOS token during generation (so the first token will not have a log probability associated with it)'
+    )
+    parser.add_argument(
+        '--sum',
+        action='store_true',
+        help='return a sum over the surprisal for the given input'
+    )
+    parser.add_argument(
+        '--mean',
+        action='store_true',
+        help='return mean over the surprisal for the given input'
+    )
 
     args = parser.parse_args()
 
@@ -42,5 +57,11 @@ if __name__ == "__main__":
 
         surp.lineplot()
         plt.show()
-
+ 
     print(surp)
+
+    if args.sum:
+        print(f"sum:  {sum(surp.surprisals):.3f}")
+    if args.mean:
+        import numpy as np
+        print(f"mean: {np.mean(surp.surprisals):.3f}")
