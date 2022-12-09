@@ -98,13 +98,27 @@ class HuggingFaceModel(Model):
     identified by a model ID
     """
 
-    def __init__(self, model_id: str, model_class: typing.Callable) -> None:
+    def __init__(
+        self,
+        model_id: str,
+        model_class: typing.Callable,
+        device: str = "cpu",
+    ) -> None:
         super().__init__(model_id)
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         # self.model_class = model_class
         self.model: PreTrainedModel = model_class.from_pretrained(self.model_id)
         self.model.eval()
+        self.to(device)  # initializes a variable called `device`
+
+    def to(self, device: str):
+        """
+        stateful method to move the model to specified device
+        and also track device for moving any inputs
+        """
+        self.device = device
+        self.model.to(self.device)
 
     def tokenize(self, textbatch: typing.Union[typing.List, str], max_length=1024):
         if type(textbatch) is str:
@@ -176,7 +190,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
 
         with torch.no_grad():
             output = self.model(
-                ids,
+                ids.to(self.device),
                 return_dict=True,
             )
 
@@ -209,7 +223,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         for b in range(logprobs.shape[0]):
             accumulator += [
                 HuggingFaceSurprisal(
-                    tokens=tokenized[b], surprisals=-logprobs[b, :].numpy()
+                    tokens=tokenized[b], surprisals=-logprobs[b, :].cpu().numpy()
                 )
             ]
         return accumulator
