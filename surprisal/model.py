@@ -193,6 +193,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
                 ids.to(self.device),
                 return_dict=True,
             )
+        tokenized = tokenized.to(self.device)
 
         # b, n, V
         logits = output["logits"]
