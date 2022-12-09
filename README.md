@@ -22,6 +22,8 @@ sentences = [
 ]
 
 m = AutoHuggingFaceModel.from_pretrained('gpt2')
+m.to('cuda') # optionally move your model to GPU!
+
 for result in m.surprise(sentences):
     print(result)
 ```
