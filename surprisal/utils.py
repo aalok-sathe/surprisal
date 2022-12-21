@@ -96,6 +96,7 @@ openai_models_list = [
     "babbage-code-search-text",
     "code-search-babbage-code-001",
     "text-davinci-002",
+    "text-davinci-003",
     "text-ada-001",
     "davinci-search-query",
     "ada-code-search-code",
