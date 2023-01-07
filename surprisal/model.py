@@ -91,8 +91,8 @@ class HuggingFaceModel(Model):
 
 
 class CausalHuggingFaceModel(HuggingFaceModel):
-    def __init__(self, model_id=None) -> None:
-        super().__init__(model_id, model_class=AutoModelForCausalLM)
+    def __init__(self, model_id=None, **kwargs) -> None:
+        super().__init__(model_id, model_class=AutoModelForCausalLM, **kwargs)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
@@ -117,9 +117,11 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         else:
             ids = tokenized.input_ids
 
+        ids = ids.to(self.device)
+
         with torch.no_grad():
             output = self.model(
-                ids.to(self.device),
+                ids,
                 return_dict=True,
             )
         tokenized = tokenized.to(self.device)
@@ -304,7 +306,7 @@ class AutoTransformerModel(Model):
         ):
             return OpenAIModel(model_id, **kwargs)
         elif "gpt" in model_class.lower() + " " + model_id.lower():
-            hfm = CausalHuggingFaceModel(model_id)
+            hfm = CausalHuggingFaceModel(model_id, **kwargs)
             # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
