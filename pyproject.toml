@@ -9,7 +9,7 @@ authors = ["aalok-sathe <asathe@mit.edu>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 transformers = "^4.20.1"
 numpy = "^1.23.1"
 torch = "^1.12.0"
