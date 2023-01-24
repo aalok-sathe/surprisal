@@ -161,6 +161,19 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         return accumulator
 
 
+class DistributedBloomModel(CausalHuggingFaceModel):
+    def __init__(self, model_id=None) -> None:
+        """
+        We inherit from `CausalHuggingFaceModel` since the surprisal computation is exactly the same,
+        however, we pass in a different model class to support the `petals` library and use the
+        BitTorrent-style distributed `bigscience/bloom-petals` model (and similar ones).
+        """
+        from petals import DistributedBloomForCausalLM
+
+        super().__init__(model_id, model_class=DistributedBloomForCausalLM)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+
+
 class MaskedHuggingFaceModel(HuggingFaceModel):
     def __init__(self, model_id=None) -> None:
         super().__init__(model_id, model_class=AutoModelForMaskedLM)
@@ -312,6 +325,12 @@ class AutoTransformerModel(Model):
             return hfm
         elif "bert" in model_class.lower() + " " + model_id.lower():
             return MaskedHuggingFaceModel(model_id)
+        # in order to support the bigscience bloom-petals distributed model, we make a special case.
+        elif "petals" in model_class.lower() + " " + model_id.lower():
+            hfm = DistributedBloomModel(model_id)
+            # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
+            hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
+            return hfm
         else:
             raise ValueError(
                 f"unable to determine appropriate model class based for model_id="
