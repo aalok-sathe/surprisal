@@ -92,7 +92,9 @@ class HuggingFaceModel(Model):
 
 class CausalHuggingFaceModel(HuggingFaceModel):
     def __init__(self, model_id=None, **kwargs) -> None:
-        super().__init__(model_id, model_class=AutoModelForCausalLM, **kwargs)
+        if "model_class" not in kwargs:
+            kwargs.update(dict(model_class=AutoModelForCausalLM))
+        super().__init__(model_id, **kwargs)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
