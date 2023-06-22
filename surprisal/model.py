@@ -102,6 +102,19 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         textbatch: typing.Union[typing.List, str],
         use_bos_token=True,
     ) -> typing.List[HuggingFaceSurprisal]:
+        """provides a measure of surprisal for `textbatch`
+
+        Args:
+            textbatch (typing.Union[typing.List, str]): either a single string or a list-like of
+                strings (batch).
+            use_bos_token (bool, optional): Whether the `bos_token` of tokenizer should be used and
+                attached ahead of the tokenized sequence. Must be True in order to extract beginning
+                token surprisal. Defaults to True.
+
+        Returns:
+            typing.List[HuggingFaceSurprisal]: a list of `HuggingFaceSurprisal` instances. each list
+                item corresponds to one input in `textbatch`.
+        """
         import torch
 
         tokenized = self.tokenize(textbatch)
@@ -174,6 +187,9 @@ class DistributedBloomModel(CausalHuggingFaceModel):
 
         super().__init__(model_id, model_class=DistributedBloomForCausalLM)
         self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        # TODO: this model class is WIP, and needs testing.
+        raise NotImplementedError
 
 
 class MaskedHuggingFaceModel(HuggingFaceModel):
