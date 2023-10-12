@@ -4,6 +4,7 @@ from abc import abstractmethod
 from functools import partial
 
 import numpy as np
+import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
@@ -32,12 +33,21 @@ class HuggingFaceModel(Model):
         model_id: str,
         model_class: typing.Callable,
         device: str = "cpu",
+        precision: str = "fp32",
     ) -> None:
         super().__init__(model_id)
-
+        precisions = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
+        if precision not in precisions:
+            raise ValueError(
+                f"precision must be one of {list(precisions.keys())}, got {precision}"
+            )
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         # self.model_class = model_class
-        self.model: PreTrainedModel = model_class.from_pretrained(self.model_id)
+        self.model: PreTrainedModel = model_class.from_pretrained(
+            self.model_id, 
+            torch_dtype=precisions[precision],
+            trust_remote_code=True
+        )
         self.model.eval()
         self.to(device)  # initializes a variable called `device`
 
@@ -157,7 +167,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         for b in range(logprobs.shape[0]):
             accumulator += [
                 HuggingFaceSurprisal(
-                    tokens=tokenized[b], surprisals=-logprobs[b, :].cpu().numpy()
+                    tokens=tokenized[b], surprisals=-logprobs[b, :].cpu().float().numpy()
                 )
             ]
         return accumulator
