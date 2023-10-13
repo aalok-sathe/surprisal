@@ -34,6 +34,7 @@ class HuggingFaceModel(Model):
         model_class: typing.Callable,
         device: str = "cpu",
         precision: str = "fp32",
+        trust_remote_code: bool = False,
     ) -> None:
         super().__init__(model_id)
         precisions = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
@@ -46,7 +47,7 @@ class HuggingFaceModel(Model):
         self.model: PreTrainedModel = model_class.from_pretrained(
             self.model_id, 
             torch_dtype=precisions[precision],
-            trust_remote_code=True
+            trust_remote_code=trust_remote_code,
         )
         self.model.eval()
         self.to(device)  # initializes a variable called `device`
