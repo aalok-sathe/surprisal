@@ -106,6 +106,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         if "model_class" not in kwargs:
             kwargs.update(dict(model_class=AutoModelForCausalLM))
         super().__init__(model_id, **kwargs)
+        self.tokenizer.padding_side = "right"
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
