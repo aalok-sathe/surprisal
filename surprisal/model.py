@@ -161,7 +161,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         )
         if not use_bos_token:
             # padding to the left with a NULL because we removed the BOS token
-            logprobs = torch.concat((torch.ones(b, 1) * torch.nan, logprobs), dim=1)
+            logprobs = torch.concat(((torch.ones(b, 1) * torch.nan).to(self.device), logprobs), dim=1)
 
         # b stands for an individual item in the batch; each sentence is one item
         # since this is an autoregressive model
