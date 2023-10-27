@@ -128,14 +128,18 @@ class CausalHuggingFaceModel(HuggingFaceModel):
                 ),
                 dim=1,
             )
+            raise NotImplementedError("Attention masking needs to be implemented.")
         else:
             ids = tokenized.input_ids
+            mask = tokenized.attention_mask
 
         ids = ids.to(self.device)
+        mask = mask.to(self.device)
 
         with torch.no_grad():
             output = self.model(
-                ids,
+                input_ids=ids,
+                attention_mask=mask,
                 return_dict=True,
             )
         tokenized = tokenized.to(self.device)
