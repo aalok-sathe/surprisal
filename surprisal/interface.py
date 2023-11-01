@@ -74,3 +74,22 @@ class SurprisalArray(ABC):
             a.annotate(t, (i, arr[i]))
 
         return f, a
+
+
+class CustomEncoding:
+    """
+    a duck-typed clone of the huggingface tokenizers' return class
+        `tokenizers.Encoding`
+    that packages simple custom-tokenized text together with its
+    character and word spans allowing indexing into the tokenized
+    object by character and word spans
+
+    the goal is for this class to be capable of being passed to
+    `hf_pick_matching_token_ixs` with the signature
+
+    ```python
+    hf_pick_matching_token_ixs(
+        encoding: "tokenizers.Encoding", span_of_interest: slice, span_type: str
+    ) -> slice
+    ```
+    """

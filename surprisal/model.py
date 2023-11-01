@@ -10,12 +10,57 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
 )
+from tokenizers.pre_tokenizers import Whitespace, PreTokenizer
 
 from surprisal.utils import pick_matching_token_ixs, openai_models_list
 from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
 from surprisal.surprisal import HuggingFaceSurprisal
 
 logger = logging.getLogger(name="surprisal")
+
+
+class KenLMModel(Model):
+    """
+    A class utilizing the `kenlm` library to compute surprisal using
+    pretrained kenlm models
+    """
+
+    def __init__(self, model_path: typing.Union[str, Path], **kwargs) -> None:
+        super().__init__(str(model_path))
+
+        import kenlm
+
+        self.tokenizer = Whitespace()
+
+        self.model = kenlm.Model(self.model_path)
+        self.state_in = kenlm.State()
+        self.state_out = kenlm.State()
+
+    def tokenize(self, textbatch: typing.Union[typing.List, str]):
+        if type(textbatch) is str:
+            textbatch = [textbatch]
+
+        self.tokenizer.pre_tokenize_str
+
+        raise NotImplementedError
+
+    def surprise(self, textbatch: typing.Union[typing.List, str]) -> SurprisalArray:
+        import kenlm
+
+        def score_sent(m: kenlm.Model, sent: str, bos: bool = True, eos: bool = True):
+            st1, st2 = kenlm.State(), kenlm.State()
+            if bos:
+                m.BeginSentenceWrite(st1)
+            else:
+                m.NullContextWrite(st1)
+            words = sent.split()
+            accum = []
+            for w in words:
+                accum += [m.BaseScore(st1, w, st2)]
+                st1, st2 = st2, st1
+            if eos:
+                accum += [m.BaseScore(st1, "</s>", st2)]
+            return sum(accum), accum
 
 
 ###############################################################################
