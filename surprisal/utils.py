@@ -1,7 +1,7 @@
 from transformers import tokenization_utils_base
 
 
-def pick_matching_token_ixs(
+def hf_pick_matching_token_ixs(
     encoding: "tokenizers.Encoding", span_of_interest: slice, span_type: str
 ) -> slice:
     """Picks token indices in a tokenized encoded sequence that best correspond to
