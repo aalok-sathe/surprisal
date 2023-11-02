@@ -1,3 +1,4 @@
+import tokenizers
 from transformers import tokenization_utils_base
 
 

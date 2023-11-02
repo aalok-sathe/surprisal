@@ -12,7 +12,7 @@ from transformers import (
 )
 from tokenizers.pre_tokenizers import Whitespace, PreTokenizer
 
-from surprisal.utils import pick_matching_token_ixs, openai_models_list
+from surprisal.utils import hf_pick_matching_token_ixs, openai_models_list
 from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
 from surprisal.surprisal import HuggingFaceSurprisal
 
