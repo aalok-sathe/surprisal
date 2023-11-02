@@ -31,7 +31,7 @@ jobs:
         sudo apt install curl
         python -m pip install --upgrade pip
         curl -sSL https://install.python-poetry.org | python -
-        poetry install .
+        poetry install # no adtional args
         pip install build
     - name: Build package
       run: poetry build
