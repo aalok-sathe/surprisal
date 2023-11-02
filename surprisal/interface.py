@@ -77,7 +77,7 @@ class SurprisalArray(ABC):
         return f, a
 
 
-class CustomEncoding(tokenizers.Encoding):
+class CustomEncoding:
     """
     a duck-typed clone of the huggingface tokenizers' return class
         `tokenizers.Encoding`
