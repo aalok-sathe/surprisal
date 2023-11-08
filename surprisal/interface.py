@@ -34,6 +34,38 @@ class SurprisalArray(ABC):
     def __len__(self):
         return len(self.surprisals)
 
+    def __repr__(self) -> str:
+        """
+        nicely formatted surprisal string with corresponding tokens/substrings
+        that are sliced into using the `__getitem__` method
+        """
+        numfmt = "{: >10.3f}"
+        strfmt = "{: >10}"
+        accumulator = ""
+        for t in self.tokens:
+            accumulator += strfmt.format(t[:10]) + " "
+        accumulator += "\n"
+        for s in self.surprisals:
+            accumulator += numfmt.format(s) + " "
+        return accumulator
+
+    def __getitem__(
+        self, slctup: typing.Tuple[typing.Union[slice, int], str]
+    ) -> SurprisalQuantity:
+        """Returns the aggregated surprisal over a character
+
+        Args:
+            slctup (typing.Tuple[typing.Union[slice, int], str]):
+                `(slc, slctype) = slctup`: a tuple of a `slc` (slice) and a `slctype` (str).
+                `slc` gives the slice of the original string we want to aggregate surprisal over.
+                `slctype` indicates if it should be a "char" slice or a "word" slice.
+                if a character falls inside a token, then that entire token is included.
+
+        Returns:
+            float: the aggregated surprisal over the word span
+        """
+        raise NotImplementedError
+
     @property
     @abstractmethod
     def tokens(self):
@@ -95,6 +127,21 @@ class CustomEncoding:
     and that's about it. it does not provide implementations of anything else,
     since huggingface makes it really difficult to actually re-use any of the
     Rust implementation of tokeizers in Python
+
+    Arguments:
+    ----------
+    `tokens` (typing.Iterable[str]): the tokens in the tokenized text
+    `spans` (typing.Iterable[typing.Tuple[int]]): the character spans of each token
+    `original_str` (str): the original string that was tokenized
+
+    E.g., the input to tokens and spans would be the result of the following output from
+    `tokenizers.pre_tokenizers.Whitespace().pre_tokenize_str("hi my name is language model")`:
+        [('hi', (0, 2)),
+        ('my', (3, 5)),
+        ('name', (6, 10)),
+        ('is', (11, 13)),
+        ('language', (14, 22)),
+        ('model', (23, 29))]
     """
 
     def __init__(
@@ -102,12 +149,14 @@ class CustomEncoding:
         tokens: typing.Iterable[str],
         spans: typing.Iterable[typing.Tuple[int]],
         original_str: str,
+        ids: typing.Iterable[int] = None,
     ) -> None:
         self.tokens = tokens
         self.spans = spans
         self.original_str = original_str
+        self.ids = ids
 
-    def token_to_chars(self, token_index):
+    def token_to_chars(self, token_index) -> typing.Tuple[int, int]:
         """
         Get the offsets of the token at the given index.
 
@@ -122,8 +171,9 @@ class CustomEncoding:
         Returns:
             :obj:`Tuple[int, int]`: The token offsets :obj:`(first, last + 1)`
         """
+        return self.spans[token_index]
 
-    def token_to_word(self):
+    def token_to_word(self, token_index):
         """
         Get the index of the word that contains the token in one of the input sequences.
 
@@ -138,6 +188,12 @@ class CustomEncoding:
         Returns:
             :obj:`int`: The index of the word in the relevant input sequence.
         """
+        # assuming this is going to be primarily used for whitespace-tokenized text
+        # TODO: this method will need to be fleshed out using the character spans to
+        # match the tokens to their corresponding words if we ever want to support a
+        # custom tokenization scheme that isn't just whitespace.
+        # this is possible, but will skip implementing for now
+        return token_index
 
     @property
     def ids(self):
@@ -150,3 +206,7 @@ class CustomEncoding:
         Returns:
             :obj:`List[int]`: The list of IDs
         """
+        # IDs are not applicable to non-LM tokenization, unless explicitly specified
+        if self.ids:
+            return self.ids
+        return [0] * len(self.tokens)
