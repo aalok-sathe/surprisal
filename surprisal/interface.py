@@ -153,7 +153,7 @@ class CustomEncoding:
         self.tokens = tokens
         self.spans = spans
         self.original_str = original_str
-        self.ids = ids
+        self._ids = ids
 
     def token_to_chars(self, token_index) -> typing.Tuple[int, int]:
         """
@@ -206,6 +206,6 @@ class CustomEncoding:
             :obj:`List[int]`: The list of IDs
         """
         # IDs are not applicable to non-LM tokenization, unless explicitly specified
-        if self.ids:
-            return self.ids
+        if self._ids:
+            return self._ids
         return [0] * len(self.tokens)
