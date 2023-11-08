@@ -2,8 +2,10 @@ import typing
 import logging
 from abc import abstractmethod
 from functools import partial
+from pathlib import Path
 
 import numpy as np
+import numpy.typing
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
@@ -32,7 +34,7 @@ class KenLMModel(Model):
 
         self.tokenizer = Whitespace()
 
-        self.model = kenlm.Model(self.model_path)
+        self.model = kenlm.Model(model_path)
         self.state_in = kenlm.State()
         self.state_out = kenlm.State()
 

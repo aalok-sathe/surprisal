@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod, abstractclassmethod, abstractproperty
 import typing
-import tokenizers.Encoding
 
 
 class Model(ABC):
