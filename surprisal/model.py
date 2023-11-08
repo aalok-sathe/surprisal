@@ -21,6 +21,14 @@ from surprisal.surprisal import HuggingFaceSurprisal, NGramSurprisal
 logger = logging.getLogger(name="surprisal")
 
 
+###############################################################################
+### model classes to compute surprisal
+###############################################################################
+
+# N-gram LM surprisal #
+#######################
+
+
 class KenLMModel(Model):
     """
     A class utilizing the `kenlm` library to compute surprisal using
@@ -53,7 +61,8 @@ class KenLMModel(Model):
             yield CustomEncoding(tokens, spans, textbatch[0])
 
     def surprise(
-        self, textbatch: typing.Union[typing.List, str]
+        self,
+        textbatch: typing.Union[typing.List, str],
     ) -> typing.List[NGramSurprisal]:
         import kenlm
 
@@ -89,9 +98,10 @@ class KenLMModel(Model):
         return accumulator
 
 
-###############################################################################
-### model classes to compute surprisal
-###############################################################################
+# neural network LM surprisal #
+###############################
+
+
 class HuggingFaceModel(Model):
     """
     A class to support language models hosted on the Huggingface Hub

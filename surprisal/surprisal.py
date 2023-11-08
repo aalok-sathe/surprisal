@@ -118,5 +118,5 @@ class NGramSurprisal(HuggingFaceSurprisal):
         )
 
 
-class PCFGSurprisal(SurprisalArray):
-    ...
+# class PCFGSurprisal(SurprisalArray):
+#     ...
