@@ -17,6 +17,7 @@ plotext = "^5.0.2"
 matplotlib = "^3.5.2"
 pandas = "^1.4.3"
 openai = "^0.23.0"
+kenlm = {version = "^0.2.0", optional = true}
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.4.0"

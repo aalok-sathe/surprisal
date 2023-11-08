@@ -37,7 +37,9 @@ class HuggingFaceSurprisal(SurprisalArray):
     def __iter__(self) -> typing.Tuple[str, float]:
         return zip(self.tokens, self.surprisals)
 
-    def __getitem__(self, slctup: typing.Tuple[typing.Union[slice, int], str]):
+    def __getitem__(
+        self, slctup: typing.Tuple[typing.Union[slice, int], str]
+    ) -> SurprisalQuantity:
         """Returns the aggregated surprisal over a character
 
         Args:
@@ -58,9 +60,9 @@ class HuggingFaceSurprisal(SurprisalArray):
             slc, slctype = slctup, "char"
 
         if slctype == "char":
-            fn = partial(pick_matching_token_ixs, span_type="char")
+            fn = partial(hf_pick_matching_token_ixs, span_type="char")
         elif slctype == "word":
-            fn = partial(pick_matching_token_ixs, span_type="word")
+            fn = partial(hf_pick_matching_token_ixs, span_type="word")
 
         if type(slc) is int:
             slc = slice(slc, slc + 1)
@@ -69,17 +71,6 @@ class HuggingFaceSurprisal(SurprisalArray):
         return SurprisalQuantity(
             self.surprisals[token_slc].sum(), " ".join(self.tokens[token_slc])
         )
-
-    def __repr__(self) -> str:
-        numfmt = "{: >10.3f}"
-        strfmt = "{: >10}"
-        accumulator = ""
-        for t in self.tokens:
-            accumulator += strfmt.format(t[:10]) + " "
-        accumulator += "\n"
-        for s in self.surprisals:
-            accumulator += numfmt.format(s) + " "
-        return accumulator
 
 
 class NGramSurprisal(HuggingFaceSurprisal):
