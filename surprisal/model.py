@@ -57,6 +57,9 @@ class KenLMModel(Model):
     ) -> typing.List[NGramSurprisal]:
         import kenlm
 
+        if type(textbatch) is str:
+            textbatch = [textbatch]
+
         def score_sent(
             sent: CustomEncoding,
             m: kenlm.Model = self.model,
@@ -82,9 +85,7 @@ class KenLMModel(Model):
 
         accumulator = []
         for b in range(len(textbatch)):
-            accumulator += [
-                NGramSurprisal(tokens=tokenized[b], surprisals=-scores[b].numpy())
-            ]
+            accumulator += [NGramSurprisal(tokens=tokenized[b], surprisals=-scores[b])]
         return accumulator
 
 

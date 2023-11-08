@@ -5,7 +5,7 @@ from functools import partial
 
 import numpy as np
 from surprisal.utils import hf_pick_matching_token_ixs
-from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
+from surprisal.interface import CustomEncoding, Model, SurprisalArray, SurprisalQuantity
 
 logger = logging.getLogger(name="surprisal")
 
@@ -76,17 +76,10 @@ class HuggingFaceSurprisal(SurprisalArray):
 class NGramSurprisal(HuggingFaceSurprisal):
     def __init__(
         self,
-        tokens: typing.List[str],
+        tokens: typing.List[CustomEncoding],
         surprisals: np.ndarray,
     ) -> None:
-        super().__init__()
-
-        self._tokens: typing.List[str] = tokens
-        self._surprisals: surprisals.astype(SurprisalQuantity)
-
-    @property
-    def tokens(self) -> typing.List[str]:
-        return self._tokens
+        super().__init__(tokens, surprisals.astype(SurprisalQuantity))
 
     def __getitem__(
         self, slctup: typing.Tuple[typing.Union[slice, int], typing.Optional[str]]
