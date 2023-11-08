@@ -4,6 +4,7 @@ from surprisal.model import (
     CausalHuggingFaceModel,
     MaskedHuggingFaceModel,
     OpenAIModel,
+    KenLMModel,
 )
 
 from surprisal.interface import SurprisalQuantity
