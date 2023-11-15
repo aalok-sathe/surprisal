@@ -216,7 +216,17 @@ class CausalHuggingFaceModel(HuggingFaceModel):
                 ),
                 dim=1,
             )
-            raise NotImplementedError("Attention masking needs to be implemented.")
+            mask = torch.concat(
+                (
+                    # TODO: need to evaluate what happens if this is set to 0 for the BOS token
+                    torch.tensor([1])
+                    .view(1, -1)
+                    .repeat(tokenized.input_ids.shape[0], 1),
+                    tokenized.attention_mask,
+                ),
+                dim=1,
+            )
+            # raise NotImplementedError
         else:
             ids = tokenized.input_ids
             mask = tokenized.attention_mask
