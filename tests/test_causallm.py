@@ -11,6 +11,14 @@ def test_init_model(model_id):
     m = surprisal.CausalHuggingFaceModel(model_id=model_id)
 
 
+@pytest.mark.parametrize("model_id, stim", [("gpt2", "The cat sat on the mat.")])
+def test_compute_surprisal_unconditional(model_id, stim):
+    import surprisal
+
+    m = surprisal.CausalHuggingFaceModel(model_id=model_id)
+    surp = m.surprise(stim)
+
+
 @pytest.mark.parametrize(
     "model_id, stim_plaus, stim_implaus, expected_surp_plaus, expected_surp_implaus",
     [
@@ -45,3 +53,9 @@ def test_compute_surprisal_relative(model_id, stim_plaus, stim_implaus):
     m = surprisal.CausalHuggingFaceModel(model_id=model_id)
     [surp_plaus, surp_implaus] = m.surprise([stim_plaus, stim_implaus])
     assert surp_plaus[0 : len(stim_plaus)] < surp_implaus[0 : len(stim_implaus)]
+
+
+if __name__ == "__main__":
+    test_compute_surprisal_unconditional(
+        "sshleifer/tiny-gpt2", ["The cat sat.", "I am going on a bear hunt."]
+    )
