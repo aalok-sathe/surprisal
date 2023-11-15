@@ -2,20 +2,92 @@ import typing
 import logging
 from abc import abstractmethod
 from functools import partial
+from pathlib import Path
 
 import numpy as np
+import numpy.typing
+import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
     AutoTokenizer,
     PreTrainedModel,
 )
+from tokenizers.pre_tokenizers import Whitespace, PreTokenizer
 
-from surprisal.utils import pick_matching_token_ixs, openai_models_list
-from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
-from surprisal.surprisal import HuggingFaceSurprisal
+from surprisal.utils import hf_pick_matching_token_ixs, openai_models_list
+from surprisal.interface import Model, SurprisalArray, SurprisalQuantity, CustomEncoding
+from surprisal.surprisal import HuggingFaceSurprisal, NGramSurprisal
 
 logger = logging.getLogger(name="surprisal")
+
+
+class KenLMModel(Model):
+    """
+    A class utilizing the `kenlm` library to compute surprisal using
+    pretrained kenlm models
+    """
+
+    def __init__(self, model_path: typing.Union[str, Path], **kwargs) -> None:
+        super().__init__(str(model_path))
+
+        import kenlm
+
+        self.tokenizer = Whitespace()
+
+        self.model = kenlm.Model(model_path)
+        self.state_in = kenlm.State()
+        self.state_out = kenlm.State()
+
+    def tokenize(
+        self, textbatch: typing.Union[typing.List, str]
+    ) -> typing.Iterable[CustomEncoding]:
+        if type(textbatch) is str:
+            textbatch = [textbatch]
+
+        tokenized = map(self.tokenizer.pre_tokenize_str, textbatch)
+
+        for tokens_and_spans in tokenized:
+            tokens_and_spans = [*zip(*tokens_and_spans)]
+            tokens = tokens_and_spans[0]
+            spans = tokens_and_spans[1]
+            yield CustomEncoding(tokens, spans, textbatch[0])
+
+    def surprise(
+        self, textbatch: typing.Union[typing.List, str]
+    ) -> typing.List[NGramSurprisal]:
+        import kenlm
+
+        if type(textbatch) is str:
+            textbatch = [textbatch]
+
+        def score_sent(
+            sent: CustomEncoding,
+            m: kenlm.Model = self.model,
+            bos: bool = True,
+            eos: bool = True,
+        ) -> np.typing.NDArray[float]:
+            st1, st2 = kenlm.State(), kenlm.State()
+            if bos:
+                m.BeginSentenceWrite(st1)
+            else:
+                m.NullContextWrite(st1)
+            words = sent.tokens
+            accum = []
+            for w in words:
+                accum += [m.BaseScore(st1, w, st2)]
+                st1, st2 = st2, st1
+            if eos:
+                accum += [m.BaseScore(st1, "</s>", st2)]
+            return np.array(accum)
+
+        tokenized = [*self.tokenize(textbatch)]
+        scores = [*map(score_sent, tokenized)]
+
+        accumulator = []
+        for b in range(len(textbatch)):
+            accumulator += [NGramSurprisal(tokens=tokenized[b], surprisals=-scores[b])]
+        return accumulator
 
 
 ###############################################################################
@@ -32,12 +104,26 @@ class HuggingFaceModel(Model):
         model_id: str,
         model_class: typing.Callable,
         device: str = "cpu",
+        precision: str = "fp32",
+        trust_remote_code: bool = False,
     ) -> None:
         super().__init__(model_id)
-
+        precisions = {
+            "fp32": torch.float32,
+            "fp16": torch.float16,
+            "bf16": torch.bfloat16,
+        }
+        if precision not in precisions:
+            raise ValueError(
+                f"precision must be one of {list(precisions.keys())}, got {precision}"
+            )
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         # self.model_class = model_class
-        self.model: PreTrainedModel = model_class.from_pretrained(self.model_id)
+        self.model: PreTrainedModel = model_class.from_pretrained(
+            self.model_id,
+            torch_dtype=precisions[precision],
+            trust_remote_code=trust_remote_code,
+        )
         self.model.eval()
         self.to(device)  # initializes a variable called `device`
 
@@ -66,7 +152,7 @@ class HuggingFaceModel(Model):
     @abstractmethod
     def surprise(
         self, textbatch: typing.Union[typing.List, str]
-    ) -> HuggingFaceSurprisal:
+    ) -> typing.List[HuggingFaceSurprisal]:
         raise NotImplementedError
 
     def extract_surprisal(
@@ -92,7 +178,10 @@ class HuggingFaceModel(Model):
 
 class CausalHuggingFaceModel(HuggingFaceModel):
     def __init__(self, model_id=None, **kwargs) -> None:
-        super().__init__(model_id, model_class=AutoModelForCausalLM, **kwargs)
+        if "model_class" not in kwargs:
+            kwargs.update(dict(model_class=AutoModelForCausalLM))
+        super().__init__(model_id, **kwargs)
+        self.tokenizer.padding_side = "right"
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
@@ -100,6 +189,19 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         textbatch: typing.Union[typing.List, str],
         use_bos_token=True,
     ) -> typing.List[HuggingFaceSurprisal]:
+        """provides a measure of surprisal for `textbatch`
+
+        Args:
+            textbatch (typing.Union[typing.List, str]): either a single string or a list-like of
+                strings (batch).
+            use_bos_token (bool, optional): Whether the `bos_token` of tokenizer should be used and
+                attached ahead of the tokenized sequence. Must be True in order to extract beginning
+                token surprisal. Defaults to True.
+
+        Returns:
+            typing.List[HuggingFaceSurprisal]: a list of `HuggingFaceSurprisal` instances. each list
+                item corresponds to one input in `textbatch`.
+        """
         import torch
 
         tokenized = self.tokenize(textbatch)
@@ -114,14 +216,28 @@ class CausalHuggingFaceModel(HuggingFaceModel):
                 ),
                 dim=1,
             )
+            mask = torch.concat(
+                (
+                    # TODO: need to evaluate what happens if this is set to 0 for the BOS token
+                    torch.tensor([1])
+                    .view(1, -1)
+                    .repeat(tokenized.input_ids.shape[0], 1),
+                    tokenized.attention_mask,
+                ),
+                dim=1,
+            )
+            # raise NotImplementedError
         else:
             ids = tokenized.input_ids
+            mask = tokenized.attention_mask
 
         ids = ids.to(self.device)
+        mask = mask.to(self.device)
 
         with torch.no_grad():
             output = self.model(
-                ids,
+                input_ids=ids,
+                attention_mask=mask,
                 return_dict=True,
             )
         tokenized = tokenized.to(self.device)
@@ -147,7 +263,9 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         )
         if not use_bos_token:
             # padding to the left with a NULL because we removed the BOS token
-            logprobs = torch.concat((torch.ones(b, 1) * torch.nan, logprobs), dim=1)
+            logprobs = torch.concat(
+                ((torch.ones(b, 1) * torch.nan).to(self.device), logprobs), dim=1
+            )
 
         # b stands for an individual item in the batch; each sentence is one item
         # since this is an autoregressive model
@@ -155,10 +273,27 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         for b in range(logprobs.shape[0]):
             accumulator += [
                 HuggingFaceSurprisal(
-                    tokens=tokenized[b], surprisals=-logprobs[b, :].cpu().numpy()
+                    tokens=tokenized[b],
+                    surprisals=-logprobs[b, :].cpu().float().numpy(),
                 )
             ]
         return accumulator
+
+
+class DistributedBloomModel(CausalHuggingFaceModel):
+    def __init__(self, model_id=None) -> None:
+        """
+        We inherit from `CausalHuggingFaceModel` since the surprisal computation is exactly the same,
+        however, we pass in a different model class to support the `petals` library and use the
+        BitTorrent-style distributed `bigscience/bloom-petals` model (and similar ones).
+        """
+        from petals import DistributedBloomForCausalLM
+
+        super().__init__(model_id, model_class=DistributedBloomForCausalLM)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        # TODO: this model class is WIP, and needs testing.
+        raise NotImplementedError
 
 
 class MaskedHuggingFaceModel(HuggingFaceModel):
@@ -327,6 +462,12 @@ class AutoTransformerModel(Model):
             return hfm
         elif "bert" in model_class.lower() + " " + model_id.lower():
             return MaskedHuggingFaceModel(model_id)
+        # in order to support the bigscience bloom-petals distributed model, we make a special case.
+        elif "petals" in model_class.lower() + " " + model_id.lower():
+            hfm = DistributedBloomModel(model_id)
+            # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
+            hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
+            return hfm
         else:
             raise ValueError(
                 f"unable to determine appropriate model class based for model_id="
