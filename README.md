@@ -127,7 +127,7 @@ extras.
 
 ### To install all extras:
 ```bash
-pip install surprisal[transformers,openai,kenlm]`
+pip install surprisal[transformers,openai,kenlm]
 ```
 
 ### Install using `poetry`
