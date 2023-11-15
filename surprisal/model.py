@@ -2,20 +2,91 @@ import typing
 import logging
 from abc import abstractmethod
 from functools import partial
+from pathlib import Path
 
 import numpy as np
+import numpy.typing
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
     AutoTokenizer,
     PreTrainedModel,
 )
+from tokenizers.pre_tokenizers import Whitespace, PreTokenizer
 
-from surprisal.utils import pick_matching_token_ixs, openai_models_list
-from surprisal.interface import Model, SurprisalArray, SurprisalQuantity
-from surprisal.surprisal import HuggingFaceSurprisal
+from surprisal.utils import hf_pick_matching_token_ixs, openai_models_list
+from surprisal.interface import Model, SurprisalArray, SurprisalQuantity, CustomEncoding
+from surprisal.surprisal import HuggingFaceSurprisal, NGramSurprisal
 
 logger = logging.getLogger(name="surprisal")
+
+
+class KenLMModel(Model):
+    """
+    A class utilizing the `kenlm` library to compute surprisal using
+    pretrained kenlm models
+    """
+
+    def __init__(self, model_path: typing.Union[str, Path], **kwargs) -> None:
+        super().__init__(str(model_path))
+
+        import kenlm
+
+        self.tokenizer = Whitespace()
+
+        self.model = kenlm.Model(model_path)
+        self.state_in = kenlm.State()
+        self.state_out = kenlm.State()
+
+    def tokenize(
+        self, textbatch: typing.Union[typing.List, str]
+    ) -> typing.Iterable[CustomEncoding]:
+        if type(textbatch) is str:
+            textbatch = [textbatch]
+
+        tokenized = map(self.tokenizer.pre_tokenize_str, textbatch)
+
+        for tokens_and_spans in tokenized:
+            tokens_and_spans = [*zip(*tokens_and_spans)]
+            tokens = tokens_and_spans[0]
+            spans = tokens_and_spans[1]
+            yield CustomEncoding(tokens, spans, textbatch[0])
+
+    def surprise(
+        self, textbatch: typing.Union[typing.List, str]
+    ) -> typing.List[NGramSurprisal]:
+        import kenlm
+
+        if type(textbatch) is str:
+            textbatch = [textbatch]
+
+        def score_sent(
+            sent: CustomEncoding,
+            m: kenlm.Model = self.model,
+            bos: bool = True,
+            eos: bool = True,
+        ) -> np.typing.NDArray[float]:
+            st1, st2 = kenlm.State(), kenlm.State()
+            if bos:
+                m.BeginSentenceWrite(st1)
+            else:
+                m.NullContextWrite(st1)
+            words = sent.tokens
+            accum = []
+            for w in words:
+                accum += [m.BaseScore(st1, w, st2)]
+                st1, st2 = st2, st1
+            if eos:
+                accum += [m.BaseScore(st1, "</s>", st2)]
+            return np.array(accum)
+
+        tokenized = [*self.tokenize(textbatch)]
+        scores = [*map(score_sent, tokenized)]
+
+        accumulator = []
+        for b in range(len(textbatch)):
+            accumulator += [NGramSurprisal(tokens=tokenized[b], surprisals=-scores[b])]
+        return accumulator
 
 
 ###############################################################################
@@ -66,7 +137,7 @@ class HuggingFaceModel(Model):
     @abstractmethod
     def surprise(
         self, textbatch: typing.Union[typing.List, str]
-    ) -> HuggingFaceSurprisal:
+    ) -> typing.List[HuggingFaceSurprisal]:
         raise NotImplementedError
 
     def extract_surprisal(
