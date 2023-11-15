@@ -113,8 +113,27 @@ python -m surprisal -m distilgpt2 "I went to the space station today."
 
 
 ## Installing
-`pip install surprisal`
+Because `surprisal` is used by people from different communities for different
+purposes, by default, core dependencies related to language modeling are marked
+optional. Depending on your use case, install `surprisal` with the appropriate
+extras.
 
+- For Huggingface transformers support:
+`pip install surprisal[transformers]`
+- For KenLM support:
+`pip install surprisal[kenlm]`
+- For OpenAI support:
+`pip install surprisal[openai]`
+
+### To install all extras:
+```bash
+pip install surprisal[transformers,openai,kenlm]`
+```
+
+### Install using `poetry`
+```bash
+poetry add surprisal -E transformers -E openai -E kenlm
+```
 
 ## Acknowledgments
 
