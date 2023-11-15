@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing
+import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
@@ -103,12 +104,26 @@ class HuggingFaceModel(Model):
         model_id: str,
         model_class: typing.Callable,
         device: str = "cpu",
+        precision: str = "fp32",
+        trust_remote_code: bool = False,
     ) -> None:
         super().__init__(model_id)
-
+        precisions = {
+            "fp32": torch.float32,
+            "fp16": torch.float16,
+            "bf16": torch.bfloat16,
+        }
+        if precision not in precisions:
+            raise ValueError(
+                f"precision must be one of {list(precisions.keys())}, got {precision}"
+            )
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         # self.model_class = model_class
-        self.model: PreTrainedModel = model_class.from_pretrained(self.model_id)
+        self.model: PreTrainedModel = model_class.from_pretrained(
+            self.model_id,
+            torch_dtype=precisions[precision],
+            trust_remote_code=trust_remote_code,
+        )
         self.model.eval()
         self.to(device)  # initializes a variable called `device`
 
@@ -166,6 +181,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         if "model_class" not in kwargs:
             kwargs.update(dict(model_class=AutoModelForCausalLM))
         super().__init__(model_id, **kwargs)
+        self.tokenizer.padding_side = "right"
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def surprise(
@@ -200,14 +216,28 @@ class CausalHuggingFaceModel(HuggingFaceModel):
                 ),
                 dim=1,
             )
+            mask = torch.concat(
+                (
+                    # TODO: need to evaluate what happens if this is set to 0 for the BOS token
+                    torch.tensor([1])
+                    .view(1, -1)
+                    .repeat(tokenized.input_ids.shape[0], 1),
+                    tokenized.attention_mask,
+                ),
+                dim=1,
+            )
+            # raise NotImplementedError
         else:
             ids = tokenized.input_ids
+            mask = tokenized.attention_mask
 
         ids = ids.to(self.device)
+        mask = mask.to(self.device)
 
         with torch.no_grad():
             output = self.model(
-                ids,
+                input_ids=ids,
+                attention_mask=mask,
                 return_dict=True,
             )
         tokenized = tokenized.to(self.device)
@@ -233,7 +263,9 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         )
         if not use_bos_token:
             # padding to the left with a NULL because we removed the BOS token
-            logprobs = torch.concat((torch.ones(b, 1) * torch.nan, logprobs), dim=1)
+            logprobs = torch.concat(
+                ((torch.ones(b, 1) * torch.nan).to(self.device), logprobs), dim=1
+            )
 
         # b stands for an individual item in the batch; each sentence is one item
         # since this is an autoregressive model
@@ -241,7 +273,8 @@ class CausalHuggingFaceModel(HuggingFaceModel):
         for b in range(logprobs.shape[0]):
             accumulator += [
                 HuggingFaceSurprisal(
-                    tokens=tokenized[b], surprisals=-logprobs[b, :].cpu().numpy()
+                    tokens=tokenized[b],
+                    surprisals=-logprobs[b, :].cpu().float().numpy(),
                 )
             ]
         return accumulator
