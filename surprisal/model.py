@@ -63,6 +63,8 @@ class KenLMModel(Model):
     def surprise(
         self,
         textbatch: typing.Union[typing.List, str],
+        use_bos_token: bool = True,
+        use_eos_token: bool = True,
     ) -> typing.List[NGramSurprisal]:
         import kenlm
 
@@ -72,11 +74,9 @@ class KenLMModel(Model):
         def score_sent(
             sent: CustomEncoding,
             m: kenlm.Model = self.model,
-            bos: bool = True,
-            eos: bool = True,
         ) -> np.typing.NDArray[float]:
             st1, st2 = kenlm.State(), kenlm.State()
-            if bos:
+            if use_bos_token:
                 m.BeginSentenceWrite(st1)
             else:
                 m.NullContextWrite(st1)
@@ -85,7 +85,7 @@ class KenLMModel(Model):
             for w in words:
                 accum += [m.BaseScore(st1, w, st2)]
                 st1, st2 = st2, st1
-            if eos:
+            if use_eos_token:
                 accum += [m.BaseScore(st1, "</s>", st2)]
             return np.array(accum)
 
