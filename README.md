@@ -2,7 +2,8 @@
 Compute surprisal from language models!
 
 `surprisal` supports most Causal Language Models (`GPT2`- and `GPTneo`-like models) from Huggingface or local checkpoint, 
-as well as `GPT3` models from OpenAI using their API!
+as well as `GPT3` models from OpenAI using their API! We also support `KenLM` N-gram based language models using the
+KenLM Python interface.
 
 Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time. 
 
@@ -11,6 +12,10 @@ Masked Language Models (`BERT`-like models) are in the pipeline and will be supp
 The snippet below computes per-token surprisals for a list of sentences
 ```python
 from surprisal import AutoHuggingFaceModel
+
+from surprisal import KenLMModel
+k = KenLMModel(model_path='./literature.arpa')
+
 
 sentences = [
     "The cat is on the mat",
@@ -25,6 +30,9 @@ m = AutoHuggingFaceModel.from_pretrained('gpt2')
 m.to('cuda') # optionally move your model to GPU!
 
 for result in m.surprise(sentences):
+    print(result)
+
+for result in k.surprise(sentences):
     print(result)
 ```
 and produces output of this sort:
@@ -105,8 +113,27 @@ python -m surprisal -m distilgpt2 "I went to the space station today."
 
 
 ## Installing
-`pip install surprisal`
+Because `surprisal` is used by people from different communities for different
+purposes, by default, core dependencies related to language modeling are marked
+optional. Depending on your use case, install `surprisal` with the appropriate
+extras.
 
+- For Huggingface transformers support:
+`pip install surprisal[transformers]`
+- For KenLM support:
+`pip install surprisal[kenlm]`
+- For OpenAI support:
+`pip install surprisal[openai]`
+
+### To install all extras:
+```bash
+pip install surprisal[transformers,openai,kenlm]
+```
+
+### Install using `poetry`
+```bash
+poetry add surprisal -E transformers -E openai -E kenlm
+```
 
 ## Acknowledgments
 

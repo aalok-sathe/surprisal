@@ -21,7 +21,12 @@ def hf_pick_matching_token_ixs(
     """
     span_of_interest = slice(
         span_of_interest.start or 0,
-        span_of_interest.stop or len(encoding.ids),
+        span_of_interest.stop
+        or (
+            len(encoding.ids)
+            if span_type == "word"
+            else encoding.token_to_chars((len(encoding.ids) - 1)).end
+        ),
         span_of_interest.step,
     )
 
