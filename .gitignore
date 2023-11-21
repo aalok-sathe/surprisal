@@ -130,3 +130,6 @@ dmypy.json
 .vscode/launch.json
 notebooks
 .vscode
+
+html/
+docs/
