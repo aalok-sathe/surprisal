@@ -5,7 +5,14 @@ import typing
 
 
 class Model(ABC):
+    """
+    Base class for all models
+    """
+
     def __init__(self, model_id=None) -> None:
+        """
+        Does the simple job of storing the model id
+        """
         super().__init__()
         self.model_id = model_id
 
@@ -27,8 +34,9 @@ class SurprisalQuantity(float):
 
 
 class SurprisalArray(ABC):
-    def __index__(self):
-        pass
+    """
+    Interface to hold surprisal values and the corresponding sequence of tokens
+    """
 
     def __len__(self):
         return len(self.surprisals)
@@ -68,14 +76,34 @@ class SurprisalArray(ABC):
     @property
     @abstractmethod
     def tokens(self):
+        """
+        returns the tokens in this sequence
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def surprisals(self) -> typing.Collection[SurprisalQuantity]:
+        """
+        returns a collection of surprisal values each corresponding to a token (see `tokens`)
+        """
         raise NotImplementedError
 
     def lineplot(self, f=None, a=None, cumulative=False):
+        """
+        Plots the surprisal values in this object as a line plot
+
+        Args:
+            f (`matplotlib.figure.Figure`, optional): An existing Figure object.
+                Created if none is provided. Defaults to None.
+            a (`matplotlib.axes.Axes`, optional): An existing Axes instance corresponding to `f`.
+                If none provided, a new instance is created. Defaults to None.
+            cumulative (bool, optional): Should surprisal be summed as we go? Defaults to False.
+
+        Returns:
+            typing.Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]: the instances of the
+                figure and axes used to plot the lineplot
+        """
         # import plotext as plt
         from matplotlib import pyplot as plt
         import numpy as np

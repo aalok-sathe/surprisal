@@ -1,11 +1,22 @@
+"""
+This module implements the SurprisalArray interface, which is the main container class
+for outputs produced by models.
+
+A `SurprisalArray` is a container for a sequence of surprisal values, each associated with
+a token in the input sequence. In the case of HuggingFace models, the tokens are 
+defined using the model's tokenizer. In the case of n-gram models, the tokens are
+typically the result of whitespace-tokenization. Whitespace-tokenized text is packaged
+as a `CustomEncoding` object, which tries to duck-type a HuggingFace `Encoding` object
+for all relevant methods needed in `surprisal`.
+"""
+
 import typing
 import logging
-from abc import abstractmethod
 from functools import partial
 
 import numpy as np
 from surprisal.utils import hf_pick_matching_token_ixs
-from surprisal.interface import CustomEncoding, Model, SurprisalArray, SurprisalQuantity
+from surprisal.interface import CustomEncoding, SurprisalArray, SurprisalQuantity
 
 logger = logging.getLogger(name="surprisal")
 
@@ -16,6 +27,10 @@ logger = logging.getLogger(name="surprisal")
 
 
 class HuggingFaceSurprisal(SurprisalArray):
+    """
+    Container class for surprisal values produced by HuggingFace models.
+    """
+
     def __init__(
         self,
         tokens: "Encoding",
@@ -64,7 +79,7 @@ class HuggingFaceSurprisal(SurprisalArray):
         elif slctype == "word":
             fn = partial(hf_pick_matching_token_ixs, span_type="word")
 
-        if type(slc) is int:
+        if isinstance(slc, int):
             slc = slice(slc, slc + 1)
 
         token_slc = fn(self._tokens, slc)
@@ -74,6 +89,10 @@ class HuggingFaceSurprisal(SurprisalArray):
 
 
 class NGramSurprisal(HuggingFaceSurprisal):
+    """
+    Container class for surprisal values produced by n-gram models.
+    """
+
     def __init__(
         self,
         tokens: typing.List[CustomEncoding],
@@ -106,11 +125,11 @@ class NGramSurprisal(HuggingFaceSurprisal):
 
         if slctype == "char":
             raise NotImplementedError('WIP; currently only supports "word" spans')
-            fn = partial(hf_pick_matching_token_ixs, span_type="char")
+            # fn = partial(hf_pick_matching_token_ixs, span_type="char")
         elif slctype == "word":
             token_slc = slc
 
-        if type(slc) is int:
+        if isinstance(slc, int):
             slc = slice(slc, slc + 1)
 
         return SurprisalQuantity(

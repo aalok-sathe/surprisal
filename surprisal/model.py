@@ -1,4 +1,5 @@
 import typing
+import os
 import logging
 from abc import abstractmethod
 from functools import partial
@@ -6,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing
-import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
@@ -74,7 +74,7 @@ class KenLMModel(Model):
 
         def score_sent(
             sent: CustomEncoding,
-            m: kenlm.Model = self.model,
+            m: kenlm.Model = self.model,  # pylint: disable=c-extension-no-member
         ) -> np.typing.NDArray[float]:
             st1, st2 = kenlm.State(), kenlm.State()
             if use_bos_token:
@@ -252,7 +252,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
             )
         tokenized = tokenized.to(self.device)
 
-        # b, n, V
+        # b, n, V: batch, sequence length, vocabulary size
         logits = output["logits"]
         b, n, V = logits.shape
         # we don't want the pad token to shift the probability distribution,
@@ -262,7 +262,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
 
         # for CausalLMs, we pick one before the current word to get surprisal of the current word in
         # context of the previous word. otherwise we would be reading off the surprisal of current
-        # word given the current word plus context, which would always be high due to non-repetition.
+        # word given the current word plus context, which would always be high due to non-repetition
         logprobs = (
             logsoftmax[:, :-1, :]
             .gather(
@@ -291,18 +291,23 @@ class CausalHuggingFaceModel(HuggingFaceModel):
 
 
 class DistributedBloomModel(CausalHuggingFaceModel):
+    """
+    We inherit from `CausalHuggingFaceModel` since the surprisal computation is exactly the
+    same, however, we pass in a different model class to support the `petals` library and use
+    the BitTorrent-style distributed `bigscience/bloom-petals` model (and similar ones).
+    """
+
     def __init__(self, model_id=None) -> None:
         """
-        We inherit from `CausalHuggingFaceModel` since the surprisal computation is exactly the same,
-        however, we pass in a different model class to support the `petals` library and use the
-        BitTorrent-style distributed `bigscience/bloom-petals` model (and similar ones).
+        Construct a `DistributedBloomModel` instance
         """
-        from petals import DistributedBloomForCausalLM
+        # TODO: make optional dependency group for `petals` once we flesh this out
+        from petals import DistributedBloomForCausalLM  # pylint: disable=import-error
 
         super().__init__(model_id, model_class=DistributedBloomForCausalLM)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # TODO: this model class is WIP, and needs testing.
+        # TODO: this model class is WIP
         raise NotImplementedError
 
 
@@ -331,8 +336,6 @@ class MaskedHuggingFaceModel(HuggingFaceModel):
         mask_mask = torch.eye(n, n)[1:, :].repeat(b, 1).bool()
         ids_with_bos_token[mask_mask] = self.tokenizer.mask_token_id
 
-        import IPython
-
         raise NotImplementedError
 
 
@@ -350,13 +353,12 @@ class OpenAIModel(HuggingFaceModel):
     def __init__(
         self, model_id="text-davinci-002", openai_api_key=None, openai_org=None
     ) -> None:
-        import os
-
         self.OPENAI_API_KEY = openai_api_key or os.environ.get("OPENAI_API_KEY", None)
         if self.OPENAI_API_KEY is None:
             raise ValueError(
                 "Error: no openAI API key provided. Please pass it in "
-                "as a kwarg (`openai_api_key=...`) or specify the environment variable OPENAI_API_KEY"
+                "as a kwarg (`openai_api_key=...`) or specify the environment "
+                "variable OPENAI_API_KEY"
             )
         self.OPENAI_ORG = openai_org or os.environ.get("OPENAI_ORG", None)
         if self.OPENAI_ORG is None:
@@ -384,7 +386,7 @@ class OpenAIModel(HuggingFaceModel):
         textbatch: typing.Union[typing.List, str],
         use_bos_token=True,
     ) -> typing.List[HuggingFaceSurprisal]:
-        import openai
+        import openai  # pylint: disable=C
 
         openai.organization = self.OPENAI_ORG
         openai.api_key = self.OPENAI_API_KEY
@@ -409,9 +411,10 @@ class OpenAIModel(HuggingFaceModel):
             logprobs = np.array(batched[b]["logprobs"]["token_logprobs"], dtype=float)
             tokens = batched[b]["logprobs"]["tokens"]
 
-            assert (
-                len(tokens) == len(tokenized[b]) + use_bos_token
-            ), f"Length mismatch in tokenization by GPT2 tokenizer `{tokenized[b]}` and tokens returned by OpenAI GPT-3 API `{tokens}`"
+            assert len(tokens) == len(tokenized[b]) + use_bos_token, (
+                f"Length mismatch in tokenization by GPT2 tokenizer `{tokenized[b]}` "
+                + f"and tokens returned by OpenAI GPT-3 API `{tokens}`"
+            )
 
             accumulator += [
                 HuggingFaceSurprisal(
@@ -424,20 +427,21 @@ class OpenAIModel(HuggingFaceModel):
         return accumulator
 
 
-class AutoTransformerModel(Model):
+class AutoModel(Model):
     """
-    Factory class for initializing surprisal models based on transformers, either Huggingface or OpenAI
+    Factory class for initializing surprisal models based on transformers: Huggingface or OpenAI
     """
 
     def __init__(self) -> None:
         """
-        this `__init__` method does nothing; the correct way to use this
-        class is using the `from_pretrained` classmethod.
+        This constructor does nothing; the correct way to use this
+        class is using the `from_pretrained` classmethod as a factory to
+        create instances of various model classes.
         """
 
     @classmethod
     def from_pretrained(
-        cls, model_id, model_class: str = None, **kwargs
+        cls, model_id_or_path, model_class: str = None, **kwargs
     ) -> typing.Union[HuggingFaceModel, OpenAIModel]:
         """
         kwargs gives the user an opportunity to specify
@@ -446,29 +450,35 @@ class AutoTransformerModel(Model):
 
         model_class = model_class or ""
         if (
-            "gpt3" in model_class.lower() + " " + model_id.lower()
-            or model_id.lower() in openai_models_list
+            "gpt3" in model_class.lower() + " " + model_id_or_path.lower()
+            or model_id_or_path.lower() in openai_models_list
         ):
-            return OpenAIModel(model_id, **kwargs)
-        elif "gpt" in model_class.lower() + " " + model_id.lower():
-            hfm = CausalHuggingFaceModel(model_id, **kwargs)
+            return OpenAIModel(model_id_or_path, **kwargs)
+        elif "gpt" in model_class.lower() + " " + model_id_or_path.lower():
+            hfm = CausalHuggingFaceModel(model_id_or_path, **kwargs)
             # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
-        elif "bert" in model_class.lower() + " " + model_id.lower():
-            return MaskedHuggingFaceModel(model_id)
+        elif "bert" in model_class.lower() + " " + model_id_or_path.lower():
+            return MaskedHuggingFaceModel(model_id_or_path)
         # in order to support the bigscience bloom-petals distributed model, we make a special case.
-        elif "petals" in model_class.lower() + " " + model_id.lower():
-            hfm = DistributedBloomModel(model_id)
+        elif "petals" in model_class.lower() + " " + model_id_or_path.lower():
+            hfm = DistributedBloomModel(model_id_or_path)
             # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
+        elif (
+            "kenlm" in model_class.lower()
+            or model_id_or_path.endswith(".arpa")
+            or model_id_or_path.endswith(".bin")
+        ):
+            return KenLMModel(model_id_or_path, **kwargs)
         else:
             raise ValueError(
                 f"unable to determine appropriate model class based for model_id="
-                f'"{model_id}" and model_class="{model_class}". '
+                f'"{model_id_or_path}" and model_class="{model_class}". '
                 f'Please explicitly pass either "gpt" or "bert" as model_class.'
             )
 
 
-AutoHuggingFaceModel = AutoTransformerModel
+AutoHuggingFaceModel = AutoTransformerModel = AutoModel

@@ -1,3 +1,7 @@
+"""
+utility functions supporting model and surprisal classes
+"""
+
 import tokenizers
 from transformers import tokenization_utils_base
 
@@ -9,7 +13,8 @@ def hf_pick_matching_token_ixs(
         a substring of interest in the original sequence, given by a char span (slice)
     Args:
         encoding (transformers.tokenization_utils_base.BatchEncoding): the output of a
-            `tokenizer(text)` call on a single text instance (not a batch, i.e. `tokenizer([text])`).
+            `tokenizer(text)` call on a single text instance (not a batch, i.e.
+            `tokenizer([text])`).
         span_of_interest (slice): a `slice` object denoting the character indices in the
             original `text` string we want to extract the corresponding tokens for
         span_type (str): either `char` or `word`, denoting what type of span we are interested
@@ -42,8 +47,7 @@ def hf_pick_matching_token_ixs(
             # log(f'No span returned for token at {i}: "{batchencoding.tokens()[i]}"',
             #      type="WARN", cmap="WARN", verbosity_check=True)
             continue
-        else:
-            span = tokenization_utils_base.CharSpan(*span)
+        span = tokenization_utils_base.CharSpan(*span)
 
         if span_type == "char":
             if span.start <= span_of_interest.start:
@@ -62,7 +66,7 @@ def hf_pick_matching_token_ixs(
 
     assert end_token - start_token <= len(
         encoding.ids
-    ), f"Extracted span is larger than original span"
+    ), "Extracted span is larger than original span"
 
     return slice(start_token, end_token)
 

@@ -3,8 +3,9 @@
 """
 
 from surprisal.model import (
-    AutoHuggingFaceModel,
-    AutoTransformerModel,
+    AutoHuggingFaceModel,  # alias to below
+    AutoTransformerModel,  # alias to below
+    AutoModel,
     CausalHuggingFaceModel,
     MaskedHuggingFaceModel,
     OpenAIModel,
