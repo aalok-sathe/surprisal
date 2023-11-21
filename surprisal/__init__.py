@@ -1,3 +1,7 @@
+"""
+.. include:: ../README.md
+"""
+
 from surprisal.model import (
     AutoHuggingFaceModel,
     AutoTransformerModel,
