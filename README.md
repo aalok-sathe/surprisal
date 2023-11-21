@@ -7,6 +7,9 @@ KenLM Python interface.
 
 Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time (see [#9](https://github.com/aalok-sathe/surprisal/pull/9)).
 
+# [Docs](https://aalok-sathe.github.io/surprisal/surprisal.html) [![](https://github.com/aalok-sathe/surprisal/actions/workflows/docs.yml/badge.svg)](https://aalok-sathe.github.io/surprisal/surprisal.html)
+
+
 # Usage
 
 The snippet below computes per-token surprisals for a list of sentences
@@ -67,7 +70,7 @@ Surprisals are in log space, and therefore added over tokens during aggregation.
 Ġcat
 ```
 
-## GPT-3 using OpenAI API
+### GPT-3 using OpenAI API
 
 ⚠ NOTE: OpenAI no longer returns log probabilities in most of their models as of recently. See [#15](https://github.com/aalok-sathe/surprisal/issues/15).
 In order to use a GPT-3 model from OpenAI's API, you will need to obtain your organization ID and user-specific API key using your account.
