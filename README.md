@@ -5,17 +5,13 @@ Compute surprisal from language models!
 as well as `GPT3` models from OpenAI using their API! We also support `KenLM` N-gram based language models using the
 KenLM Python interface.
 
-Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time. 
+Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time (see [#9](https://github.com/aalok-sathe/surprisal/pull/9)).
 
-## Usage
+# Usage
 
 The snippet below computes per-token surprisals for a list of sentences
 ```python
-from surprisal import AutoHuggingFaceModel
-
-from surprisal import KenLMModel
-k = KenLMModel(model_path='./literature.arpa')
-
+from surprisal import AutoHuggingFaceModel, KenLMModel
 
 sentences = [
     "The cat is on the mat",
@@ -29,13 +25,14 @@ sentences = [
 m = AutoHuggingFaceModel.from_pretrained('gpt2')
 m.to('cuda') # optionally move your model to GPU!
 
+k = KenLMModel(model_path='./literature.arpa')
+
 for result in m.surprise(sentences):
     print(result)
-
 for result in k.surprise(sentences):
     print(result)
 ```
-and produces output of this sort:
+and produces output of this sort (`gpt2`):
 ```
        The       Ġcat        Ġis        Ġon       Ġthe       Ġmat  
      3.276      9.222      2.463      4.145      0.961      7.237  
@@ -51,7 +48,7 @@ and produces output of this sort:
      3.998      6.856      0.619      4.115      7.612      3.031      4.817      1.233      7.033 
 ```
 
-### extracting surprisal over a substring
+## extracting surprisal over a substring
 
 A surprisal object can be aggregated over a subset of tokens that best match a span of words or characters. 
 Word boundaries are inherited from the model's standard tokenizer, and may not be consistent across models,
@@ -70,26 +67,23 @@ Surprisals are in log space, and therefore added over tokens during aggregation.
 Ġcat
 ```
 
-### GPT-3 using OpenAI API
+## GPT-3 using OpenAI API
 
+⚠ NOTE: OpenAI no longer returns log probabilities in most of their models as of recently. See [#15](https://github.com/aalok-sathe/surprisal/issues/15).
 In order to use a GPT-3 model from OpenAI's API, you will need to obtain your organization ID and user-specific API key using your account.
 Then, use the `OpenAIModel` in the same way as a Huggingface model.
 
 ```python
-
-import surprisal
 m = surprisal.OpenAIModel(model_id='text-davinci-002',
                           openai_api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
                           openai_org="org-xxxxxxxxxxxxxxxxxxxxxxxx")
 ```
-
 These values can also be passed using environment variables, `OPENAI_API_KEY` and `OPENAI_ORG` before calling a script.
 
 You can also call `Surprisal.lineplot()` to visualize the surprisals:
 
 ```python
 from matplotlib import pyplot as plt
-
 f, a = None, None
 for result in m.surprise(sentences):
     f, a = result.lineplot(f, a)
@@ -112,30 +106,38 @@ python -m surprisal -m distilgpt2 "I went to the space station today."
 ```
 
 
-## Installing
+# Installing
 Because `surprisal` is used by people from different communities for different
 purposes, by default, core dependencies related to language modeling are marked
 optional. Depending on your use case, install `surprisal` with the appropriate
 extras.
 
-- For Huggingface transformers support:
-`pip install surprisal[transformers]`
-- For KenLM support:
-`pip install surprisal[kenlm]`
-- For OpenAI support:
-`pip install surprisal[openai]`
+## Installing from PyPI (latest stable release)
 
-### To install all extras:
+Use a command like `pip install surprisal[optional]`, replacing `[optional]` with whatever optional support you need.
+For multiple optional extras, use a comma-separated list:
 ```bash
-pip install surprisal[transformers,openai,kenlm]
+pip install surprisal[kenlm,transformers]
 ```
+Possible options include: `transformers`, `kenlm`, `openai`
 
-### Install using `poetry`
+If you use `poetry` for your existing project, use the `-E` option to add
+`surprisal` together with the desired optional dependencies:
 ```bash
 poetry add surprisal -E transformers -E openai -E kenlm
 ```
 
-## Acknowledgments
+## Installing from GitHub (bleeding edge)
+
+The `-e` flag allows an editable install, so you can make changes to `surprisal`.
+```bash
+git clone https://github.com/aalok-sathe/surprisal.git
+pip install .[transformers] -e
+```
+
+
+
+# Acknowledgments
 
 Inspired from the now-inactive [`lm-scorer`](https://github.com/simonepri/lm-scorer); thanks to
 folks from [CPLlab](http://cpl.mit.edu) and [EvLab](https://evlab.mit.edu) for comments and help.
