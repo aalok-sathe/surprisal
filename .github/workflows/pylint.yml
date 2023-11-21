@@ -19,9 +19,8 @@ jobs:
           python -m pip install --upgrade pip
           sudo apt install curl
           curl -sSL https://install.python-poetry.org | python -
-          poetry shell
-          poetry install # takes no arguments
+          poetry install 
           pip install pylint
       - name: Analysing the code with pylint
         run: |
-          pylint $(git ls-files '*.py')
+          poetry run pylint $(git ls-files '*.py')
