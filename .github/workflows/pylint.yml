@@ -19,7 +19,7 @@ jobs:
           python -m pip install --upgrade pip
           sudo apt install curl
           curl -sSL https://install.python-poetry.org | python -
-          poetry install 
+          poetry install -E transformers -E kenlm -E openai 
           pip install pylint
       - name: Analysing the code with pylint
         run: |
