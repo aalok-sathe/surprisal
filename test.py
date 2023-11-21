@@ -5,11 +5,12 @@ from matplotlib import pyplot as plt
 
 import surprisal
 
-g = surprisal.AutoHuggingFaceModel.from_pretrained(model_id="gpt2")
-# b = surprisal.AutoHuggingFaceModel.from_pretrained(model_id="bert-base-uncased")
+# m = surprisal.AutoHuggingFaceModel.from_pretrained(model_id="gpt2")
+m = surprisal.AutoHuggingFaceModel.from_pretrained(model_id="bert-base-uncased")
 
 
 stims = [
+    "The hooligan wrecked my new car!",
     "I am a cat on the mat",
     # "The cat sat on the mat.",
     # "The cat sat on the pizza.",
@@ -20,7 +21,7 @@ stims = [
     # "How likely is a spicy burrito?",
 ]
 
-surps = [*g.surprise(stims), *g.surprise(stims, use_bos_token=False)]
+surps = [*m.surprise(stims), *m.surprise(stims, use_bos_token=False)]
 
 
 f, a = plt.subplots()
