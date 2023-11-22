@@ -118,6 +118,8 @@ class HuggingFaceModel(Model):
         trust_remote_code: bool = False,
     ) -> None:
         super().__init__(model_id)
+        import torch
+
         precisions = {
             "fp32": torch.float32,
             "fp16": torch.float16,
