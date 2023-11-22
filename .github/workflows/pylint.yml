@@ -30,7 +30,7 @@ jobs:
           pylint-json2html pylint.json -o docs/pylint.html 
 
       - name: upload pylint output as artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v2
         with:
           name: pylint-html
           path: docs/pylint.html
