@@ -17,12 +17,9 @@ jobs:
       - name: Install poetry and pylint
         run: |
           python -m pip install --upgrade pip
-          sudo apt install curl
-          curl -sSL https://install.python-poetry.org | python -
           pip install pylint
-      - name: Install dependencies using poetry
-        run: |
-          poetry install -E transformers -E kenlm -E openai 
+      - name: Install dependencies 
+        run: pip install .[transformers,kenlm,openai] 
       - name: Analysing the code with pylint
         run: |
-          poetry run pylint $(git ls-files 'surprisal/*.py')
+          pylint $(git ls-files 'surprisal/*.py')
