@@ -1,4 +1,4 @@
-name: website
+name: Docs
 
 # build the documentation whenever there are new commits on main
 on:
@@ -28,10 +28,17 @@ jobs:
       # install poetry
       - run: sudo apt install curl
       - run: curl -sSL https://install.python-poetry.org | python3 -
-      - run: poetry install -E transformers -E kenlm --with docs
+      - run: poetry install -E all --with docs
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
       - run: poetry run pdoc -o docs/ surprisal
+
+      - name: Download artifact from pylint
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: pylint.yml
+          workflow_conclusion: success
+          if_no_artifact_found: warn
 
       - uses: actions/upload-pages-artifact@v2
         with:
