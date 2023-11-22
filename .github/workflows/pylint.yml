@@ -25,7 +25,9 @@ jobs:
           pylint -j 0 --extension-pkg-allow-list=kenlm,numpy surprisal --output-format=json:pylint.json,colorized || pylint-exit -efail $?
 
       - name: convert pylint json output to html
-        run: pylint-json2html pylint.json -o docs/pylint.html 
+        run: |
+          mkdir -p docs/
+          pylint-json2html pylint.json -o docs/pylint.html 
 
       - name: upload pylint output as artifact
         uses: actions/upload-artifact@master
