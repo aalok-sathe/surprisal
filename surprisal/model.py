@@ -39,7 +39,7 @@ class KenLMModel(Model):
     def __init__(self, model_path: typing.Union[str, Path], **kwargs) -> None:
         super().__init__(str(model_path))
 
-        import kenlm
+        import kenlm  # pylint: disable=import-outside-toplevel
 
         self.tokenizer = Whitespace()
 
@@ -49,8 +49,16 @@ class KenLMModel(Model):
 
     def tokenize(
         self, textbatch: typing.Union[typing.List, str]
-    ) -> typing.Iterable[CustomEncoding]:
-        if type(textbatch) is str:
+    ) -> typing.Iterator[CustomEncoding]:
+        """Tokenize text using `self.tokenizer`
+
+        Args:
+            textbatch (typing.Union[typing.List, str]): str or list of strings to tokenize
+
+        Yields:
+            Iterator[CustomEncoding]: iterator over tokenized `CustomEncoding` instances
+        """
+        if isinstance(textbatch, str):
             textbatch = [textbatch]
 
         tokenized = map(self.tokenizer.pre_tokenize_str, textbatch)
@@ -67,9 +75,9 @@ class KenLMModel(Model):
         use_bos_token: bool = True,
         use_eos_token: bool = True,
     ) -> typing.List[NGramSurprisal]:
-        import kenlm
+        import kenlm  # pylint: disable=import-outside-toplevel
 
-        if type(textbatch) is str:
+        if isinstance(textbatch, str):
             textbatch = [textbatch]
 
         def score_sent(
@@ -118,7 +126,7 @@ class HuggingFaceModel(Model):
         trust_remote_code: bool = False,
     ) -> None:
         super().__init__(model_id)
-        import torch
+        import torch  # pylint: disable=import-outside-toplevel
 
         precisions = {
             "fp32": torch.float32,
@@ -148,7 +156,18 @@ class HuggingFaceModel(Model):
         self.model.to(self.device)
 
     def tokenize(self, textbatch: typing.Union[typing.List, str], max_length=1024):
-        if type(textbatch) is str:
+        """
+        Tokenizes the input text batch using the `self.tokenizer`
+
+        Args:
+            textbatch (Union[List, str]): The input text batch to be tokenized.
+            max_length (int): The maximum length of the tokenized sequences.
+
+        Returns:
+            Encoding: Output from the model's default huggingface tokenizer.
+        """
+
+        if isinstance(textbatch, str):
             textbatch = [textbatch]
 
         tokenized = self.tokenizer(
@@ -178,7 +197,7 @@ class HuggingFaceModel(Model):
         `HuggingFaceSurprisal` __getitem__ object. No whitespaces or delimiters are added to
         the prefix or suffix, so make sure to provide an exact string formatted appropriately.
         """
-        if type(phrases) is str:
+        if isinstance(phrases, str):
             phrases = [phrases]
         if phrases is None:
             raise ValueError("please provide a phrase to extract the surprisal of")
@@ -189,6 +208,10 @@ class HuggingFaceModel(Model):
 
 
 class CausalHuggingFaceModel(HuggingFaceModel):
+    """
+    Subclass to handle causal (autoregressive) language models from huggingface
+    """
+
     def __init__(self, model_id=None, **kwargs) -> None:
         if "model_class" not in kwargs:
             kwargs.update(dict(model_class=AutoModelForCausalLM))
@@ -214,7 +237,7 @@ class CausalHuggingFaceModel(HuggingFaceModel):
             typing.List[HuggingFaceSurprisal]: a list of `HuggingFaceSurprisal` instances. each list
                 item corresponds to one input in `textbatch`.
         """
-        import torch
+        import torch  # pylint: disable=import-outside-toplevel
 
         tokenized = self.tokenize(textbatch)
 
@@ -304,7 +327,9 @@ class DistributedBloomModel(CausalHuggingFaceModel):
         Construct a `DistributedBloomModel` instance
         """
         # TODO: make optional dependency group for `petals` once we flesh this out
-        from petals import DistributedBloomForCausalLM  # pylint: disable=import-error
+        from petals import (
+            DistributedBloomForCausalLM,
+        )  # pylint: disable=import-outside-toplevel
 
         super().__init__(model_id, model_class=DistributedBloomForCausalLM)
         self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -323,7 +348,7 @@ class MaskedHuggingFaceModel(HuggingFaceModel):
         bidirectional=False,
         fixed_length=False,
     ) -> HuggingFaceSurprisal:
-        import torch
+        import torch  # pylint: disable=import-outside-toplevel
 
         tokenized = self.tokenize(textbatch)
         mask_id = self.tokenizer.mask_token_id
@@ -458,15 +483,18 @@ class AutoModel(Model):
             return OpenAIModel(model_id_or_path, **kwargs)
         elif "gpt" in model_class.lower() + " " + model_id_or_path.lower():
             hfm = CausalHuggingFaceModel(model_id_or_path, **kwargs)
-            # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
+            # for GPT-like tokenizers, pad token is not set as it is generally
+            # inconsequential for autoregressive models
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
         elif "bert" in model_class.lower() + " " + model_id_or_path.lower():
             return MaskedHuggingFaceModel(model_id_or_path)
-        # in order to support the bigscience bloom-petals distributed model, we make a special case.
+        # in order to support the bigscience bloom-petals
+        # distributed model, we make a special case.
         elif "petals" in model_class.lower() + " " + model_id_or_path.lower():
             hfm = DistributedBloomModel(model_id_or_path)
-            # for GPT-like tokenizers, pad token is not set as it is generally inconsequential for autoregressive models
+            # for GPT-like tokenizers, pad token is not set as it is generally
+            # inconsequential for autoregressive models
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
         elif (

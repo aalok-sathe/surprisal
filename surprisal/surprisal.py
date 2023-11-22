@@ -126,7 +126,7 @@ class NGramSurprisal(HuggingFaceSurprisal):
         if slctype == "char":
             raise NotImplementedError('WIP; currently only supports "word" spans')
             # fn = partial(hf_pick_matching_token_ixs, span_type="char")
-        elif slctype == "word":
+        if slctype == "word":
             token_slc = slc
 
         if isinstance(slc, int):

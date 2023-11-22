@@ -22,12 +22,19 @@ class Model(ABC):
 
 
 class SurprisalQuantity(float):
+    """
+    This class is a float with an additional attribute `text` that
+    is printed out for convenience. Inspiration drawn from the behavior of the "Pint"
+    library: https://pint.readthedocs.io/en/stable/getting/overview.html
+    In the future, we might want to consider using Pint itself for this purpose.
+    """
+
     def __init__(self, value, text="") -> None:
         float.__init__(value)
         self.text = text
 
-    def __new__(self, value, text):
-        return float.__new__(self, value)
+    def __new__(cls, value, text):
+        return float.__new__(cls, value)
 
     def __repr__(self) -> str:
         return super().__repr__() + "\n" + self.text
@@ -105,8 +112,8 @@ class SurprisalArray(ABC):
                 figure and axes used to plot the lineplot
         """
         # import plotext as plt
-        from matplotlib import pyplot as plt
-        import numpy as np
+        from matplotlib import pyplot as plt  # pylint: disable=import-outside-toplevel
+        import numpy as np  # pylint: disable=import-outside-toplevel
 
         if f is None or a is None:
             f, a = plt.subplots()

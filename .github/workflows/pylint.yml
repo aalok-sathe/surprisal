@@ -19,7 +19,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint pylint-exit pylint-json2html
       - name: Install dependencies 
-        run: pip install .[transformers,kenlm,openai] 
+        run: pip install .[allplus] 
       - name: Analysing the code with pylint
         run: |
           pylint -j 0 --extension-pkg-allow-list=kenlm,numpy surprisal --output-format=json:pylint.json,colorized || pylint-exit -efail $?

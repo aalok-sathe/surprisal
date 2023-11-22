@@ -121,13 +121,23 @@ Use a command like `pip install surprisal[optional]`, replacing `[optional]` wit
 For multiple optional extras, use a comma-separated list:
 ```bash
 pip install surprisal[kenlm,transformers]
+# the above is equivalent to
+pip install surprisal[all]
 ```
-Possible options include: `transformers`, `kenlm`, `openai`
+Possible options include: `transformers`, `kenlm`, `openai`, `petals`
 
 If you use `poetry` for your existing project, use the `-E` option to add
 `surprisal` together with the desired optional dependencies:
 ```bash
-poetry add surprisal -E transformers -E openai -E kenlm
+poetry add surprisal -E transformers -E kenlm
+# the above is equivalent to
+poetry add surprisal -E all
+```
+To also install `openai` and `petals`, you can do
+```bash
+poetry add surprisal -E transformers -E kenlm -E openai -E petals
+# the above is equivalent to 
+poetry add surprisal -E allplus
 ```
 
 ## Installing from GitHub (bleeding edge)
