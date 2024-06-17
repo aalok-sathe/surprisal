@@ -57,8 +57,11 @@ if __name__ == "__main__":
         args.model_name_or_path, model_class=args.model_class
     )
 
-    [surp] = m.surprise(args.text)
-
+    if args.model_class in ('gpt', 'causal'): 
+        [surp] = m.surprise(args.text, use_bos_token=not args.no_bos_token)
+    else:
+        [surp] = m.surprise(args.text)
+    
     if args.plot:
         from matplotlib import pyplot as plt
 
