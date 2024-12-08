@@ -1,54 +1,49 @@
-[tool.poetry]
+
+
+
+[dependency-groups]
+docs = [
+    "pdoc<15.0.0,>=14.1.0",
+    "pylint<4.0.0,>=3.0.2",
+    "pylint-exit<2.0.0,>=1.2.0",
+    "pylint-json2html<1.0.0,>=0.5.0",
+]
+dev = [
+    "ipython<9.0.0,>=8.4.0",
+    "ipykernel<7.0.0,>=6.15.1",
+    "ipywidgets<8.0.0,>=7.7.1",
+    "pytest<8.0.0,>=7.2.0",
+    "black<23.0.0,>=22.6.0",
+    "surprisal[all,kenlm,transformers]",
+]
+
+[tool.pdm.build]
+includes = []
+
+[tool.uv.sources]
+surprisal = { workspace = true }
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[project]
+authors = [
+    {name = "aalok-sathe", email = "asathe@mit.edu"},
+]
+license = {text = "MIT"}
+requires-python = "<4.0,>=3.8"
+dependencies = [
+    "numpy<2.0.0,>=1.23.1",
+    "plotext<6.0.0,>=5.0.2",
+    "matplotlib<4.0.0,>=3.5.2",
+]
 name = "surprisal"
 version = "0.1.6"
 description = "A package to conveniently compute surprisals for text sequences and subsequences"
 readme = "README.md"
+
+[project.urls]
 homepage = "https://github.com/aalok-sathe/surprisal"
 repository = "https://github.com/aalok-sathe/surprisal"
-authors = ["aalok-sathe <asathe@mit.edu>"]
-license = "MIT"
 
-[tool.poetry.dependencies]
-python = "^3.8"
-numpy = "^1.23.1"
-plotext = "^5.0.2"
-matplotlib = "^3.5.2"
-torch = {version = "^2.0.0", optional = true}
-transformers = {version = "^4.20.1", optional = true}
-openai = {version = "^0.23.0", optional = true}
-kenlm = {version = "^0.2.0", optional = true}
-petals = {version = "^2.2.0.post1", optional = true}
-
-
-[tool.poetry.extras]
-transformers = ["transformers", "torch"]
-kenlm = ["kenlm"]
-openai = ["openai"]
-petals = ["petals"]
-
-all = ["transformers", "torch", "kenlm"]
-allplus = ["transformers", "torch", "kenlm", "openai", "petals"]
-
-
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-pdoc = "^14.1.0"
-pylint = "^3.0.2"
-pylint-exit = "^1.2.0"
-pylint-json2html = "^0.5.0"
-
-[tool.poetry.group.dev.dependencies]
-ipython = "^8.4.0"
-ipykernel = "^6.15.1"
-ipywidgets = "^7.7.1"
-pytest = "^7.2.0"
-black = "^22.6.0"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
