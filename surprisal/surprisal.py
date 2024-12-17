@@ -76,8 +76,9 @@ class HuggingFaceSurprisal(SurprisalArray):
 
         if slctype == "char":
             fn = partial(hf_pick_matching_token_ixs, span_type="char")
-        elif slctype == "word":
+        else: # if slctype == "word": # we already did error handling up above
             fn = partial(hf_pick_matching_token_ixs, span_type="word")
+        
 
         if isinstance(slc, int):
             slc = slice(slc, slc + 1)
@@ -124,10 +125,12 @@ class NGramSurprisal(HuggingFaceSurprisal):
             slc, slctype = slctup, "char"
 
         if slctype == "char":
-            raise NotImplementedError('WIP; currently only supports "word" spans')
+            raise NotImplementedError('NGramSurprisal currently only supports "word" spans')
             # fn = partial(hf_pick_matching_token_ixs, span_type="char")
         if slctype == "word":
             token_slc = slc
+        else:
+            token_slc = None
 
         if isinstance(slc, int):
             slc = slice(slc, slc + 1)
