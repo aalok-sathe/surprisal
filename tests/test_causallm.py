@@ -19,6 +19,8 @@ def test_compute_surprisal_unconditional(model_id, stim):
     m = surprisal.CausalHuggingFaceModel(model_id=model_id)
     surp = m.surprise(stim)
 
+    print(f'evaluated {model_id} on "{stim}" for surprisal = {surp}')
+
 
 @pytest.mark.parametrize(
     "model_id, stim_plaus, stim_implaus, expected_surp_plaus, expected_surp_implaus",
