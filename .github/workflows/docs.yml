@@ -28,7 +28,7 @@ jobs:
       # install poetry
       - run: sudo apt install curl
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - run: uv pip install .[transformers,kenlm,petals]
+      - run: uv pip install --system .[transformers,kenlm,petals]
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
       - run: uv run pdoc -o docs/ surprisal
