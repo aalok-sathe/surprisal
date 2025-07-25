@@ -40,7 +40,7 @@ jobs:
           workflow_conclusion: success
           if_no_artifact_found: warn
 
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
 
