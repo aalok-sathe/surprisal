@@ -1,6 +1,6 @@
 """Defines the API for this module"""
 
-from abc import ABC, abstractmethod, abstractclassmethod, abstractproperty
+from abc import ABC, abstractmethod
 import typing
 
 
@@ -192,7 +192,7 @@ class CustomEncoding:
         tokens: typing.Iterable[str],
         spans: typing.Iterable[typing.Tuple[int]],
         original_str: str,
-        ids: typing.Iterable[int] = None,
+        ids: typing.Union[typing.Iterable[int], None] = None,
     ) -> None:
         self.tokens = tokens
         self.spans = spans

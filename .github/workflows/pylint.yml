@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.10"]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
@@ -19,7 +19,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint pylint-exit pylint-json2html
       - name: Install dependencies 
-        run: pip install .[allplus] 
+        run: pip install .[transformers,kenlm,petals] 
       - name: Analysing the code with pylint
         run: |
           pylint -j 0 --extension-pkg-allow-list=kenlm,numpy surprisal --output-format=json:pylint.json,colorized || pylint-exit -efail $?

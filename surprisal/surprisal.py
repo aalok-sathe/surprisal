@@ -3,7 +3,7 @@ This module implements the SurprisalArray interface, which is the main container
 for outputs produced by models.
 
 A `SurprisalArray` is a container for a sequence of surprisal values, each associated with
-a token in the input sequence. In the case of HuggingFace models, the tokens are 
+a token in the input sequence. In the case of HuggingFace models, the tokens are
 defined using the model's tokenizer. In the case of n-gram models, the tokens are
 typically the result of whitespace-tokenization. Whitespace-tokenized text is packaged
 as a `CustomEncoding` object, which tries to duck-type a HuggingFace `Encoding` object
@@ -17,6 +17,7 @@ from functools import partial
 import numpy as np
 from surprisal.utils import hf_pick_matching_token_ixs
 from surprisal.interface import CustomEncoding, SurprisalArray, SurprisalQuantity
+import tokenizers
 
 logger = logging.getLogger(name="surprisal")
 
@@ -33,12 +34,12 @@ class HuggingFaceSurprisal(SurprisalArray):
 
     def __init__(
         self,
-        tokens: "Encoding",
+        tokens: typing.Union["tokenizers.Encoding", CustomEncoding],
         surprisals: np.ndarray,
     ) -> None:
         super().__init__()
 
-        self._tokens: "Encoding" = tokens
+        self._tokens: typing.Union["tokenizers.Encoding", CustomEncoding] = tokens
         self._surprisals = surprisals.astype(SurprisalQuantity)
 
     @property
@@ -49,7 +50,7 @@ class HuggingFaceSurprisal(SurprisalArray):
     def surprisals(self) -> np.typing.NDArray[SurprisalQuantity]:
         return self._surprisals
 
-    def __iter__(self) -> typing.Tuple[str, float]:
+    def __iter__(self) -> typing.Tuple[str, SurprisalQuantity]:
         return zip(self.tokens, self.surprisals)
 
     def __getitem__(
@@ -76,9 +77,8 @@ class HuggingFaceSurprisal(SurprisalArray):
 
         if slctype == "char":
             fn = partial(hf_pick_matching_token_ixs, span_type="char")
-        else: # if slctype == "word": # we already did error handling up above
+        else:  # if slctype == "word": # we already did error handling up above
             fn = partial(hf_pick_matching_token_ixs, span_type="word")
-        
 
         if isinstance(slc, int):
             slc = slice(slc, slc + 1)
@@ -96,7 +96,7 @@ class NGramSurprisal(HuggingFaceSurprisal):
 
     def __init__(
         self,
-        tokens: typing.List[CustomEncoding],
+        tokens: CustomEncoding,
         surprisals: np.ndarray,
     ) -> None:
         super().__init__(tokens, surprisals.astype(SurprisalQuantity))
@@ -125,7 +125,9 @@ class NGramSurprisal(HuggingFaceSurprisal):
             slc, slctype = slctup, "char"
 
         if slctype == "char":
-            raise NotImplementedError('NGramSurprisal currently only supports "word" spans')
+            raise NotImplementedError(
+                'NGramSurprisal currently only supports "word" spans'
+            )
             # fn = partial(hf_pick_matching_token_ixs, span_type="char")
         if slctype == "word":
             token_slc = slc

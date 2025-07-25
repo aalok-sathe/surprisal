@@ -7,8 +7,8 @@ KenLM Python interface.
 
 Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time (see [#9](https://github.com/aalok-sathe/surprisal/pull/9)).
 
-# [Docs](https://aalok-sathe.github.io/surprisal/surprisal.html) [![](https://github.com/aalok-sathe/surprisal/actions/workflows/docs.yml/badge.svg)](https://aalok-sathe.github.io/surprisal/surprisal.html)
-
+# Docs [![](https://github.com/aalok-sathe/surprisal/actions/workflows/docs.yml/badge.svg)](https://aalok-sathe.github.io/surprisal/surprisal.html)
+Visit https://aalok-sathe.github.io/surprisal/surprisal.html.
 
 # Usage
 
@@ -70,20 +70,7 @@ Surprisals are in log space, and therefore added over tokens during aggregation.
 Ġcat
 ```
 
-### GPT-3 using OpenAI API
-
-⚠ NOTE: OpenAI no longer returns log probabilities in most of their models as of recently. See [#15](https://github.com/aalok-sathe/surprisal/issues/15).
-In order to use a GPT-3 model from OpenAI's API, you will need to obtain your organization ID and user-specific API key using your account.
-Then, use the `OpenAIModel` in the same way as a Huggingface model.
-
-```python
-m = surprisal.OpenAIModel(model_id='text-davinci-002',
-                          openai_api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
-                          openai_org="org-xxxxxxxxxxxxxxxxxxxxxxxx")
-```
-These values can also be passed using environment variables, `OPENAI_API_KEY` and `OPENAI_ORG` before calling a script.
-
-You can also call `Surprisal.lineplot()` to visualize the surprisals:
+You can use `Surprisal.lineplot()` to visualize the surprisals:
 
 ```python
 from matplotlib import pyplot as plt
@@ -97,7 +84,7 @@ plt.show()
 ![](https://i.imgur.com/HusVOUq.png)
 
 
-`surprisal` also has a minimal CLI:
+`surprisal` has a minimal CLI:
 ```python
 python -m surprisal -m distilgpt2 "I went to the train station today."
       I      Ġwent        Ġto       Ġthe     Ġtrain   Ġstation     Ġtoday          . 
@@ -115,32 +102,22 @@ purposes, by default, core dependencies related to language modeling are marked
 optional. Depending on your use case, install `surprisal` with the appropriate
 extras.
 
-## Installing from PyPI (latest stable release)
+## Installing from GitHub release or PyPI (latest stable release)
 
-Use a command like `pip install surprisal[optional]`, replacing `[optional]` with whatever optional support you need.
+Use a command like `pip install surprisal[optional]` or `pip install git+https://github.com/aalok-sathe/surprisal.git[optoinal]`, replacing `[optional]` with whatever optional support you need.
 For multiple optional extras, use a comma-separated list:
 ```bash
 pip install surprisal[kenlm,transformers]
-# the above is equivalent to
-pip install surprisal[all]
 ```
-Possible options include: `transformers`, `kenlm`, `openai`, `petals`
+Possible options include: `transformers`, `kenlm`, `petals`.
 
-If you use `poetry` for your existing project, use the `-E` option to add
+If you use `uv` for your existing project, use the `-E` option to add
 `surprisal` together with the desired optional dependencies:
 ```bash
-poetry add surprisal -E transformers -E kenlm
-# the above is equivalent to
-poetry add surprisal -E all
-```
-To also install `openai` and `petals`, you can do
-```bash
-poetry add surprisal -E transformers -E kenlm -E openai -E petals
-# the above is equivalent to 
-poetry add surprisal -E allplus
+uv add surprisal[transformers,kenlm]
 ```
 
-## Installing from GitHub (bleeding edge)
+## Installing from source (bleeding edge)
 
 The `-e` flag allows an editable install, so you can make changes to `surprisal`.
 ```bash
@@ -149,13 +126,11 @@ pip install .[transformers] -e
 ```
 
 
-
 # Acknowledgments
 
 Inspired from the now-inactive [`lm-scorer`](https://github.com/simonepri/lm-scorer); thanks to
 folks from [CPLlab](http://cpl.mit.edu) and [EvLab](https://evlab.mit.edu) for comments and help.
 
-
 ## License 
 [MIT License](./LICENSE).
-(C) 2022-23, contributors.
+(C) 2022-25, contributors.
