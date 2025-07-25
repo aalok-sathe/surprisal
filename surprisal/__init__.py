@@ -8,7 +8,6 @@ from surprisal.model import (
     AutoModel,
     CausalHuggingFaceModel,
     MaskedHuggingFaceModel,
-    OpenAIModel,
     KenLMModel,
 )
 
