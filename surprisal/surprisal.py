@@ -34,12 +34,12 @@ class HuggingFaceSurprisal(SurprisalArray):
 
     def __init__(
         self,
-        tokens: "tokenizers.Encoding",
+        tokens: typing.Union["tokenizers.Encoding", CustomEncoding],
         surprisals: np.ndarray,
     ) -> None:
         super().__init__()
 
-        self._tokens: "tokenizers.Encoding" = tokens
+        self._tokens: typing.Union["tokenizers.Encoding", CustomEncoding] = tokens
         self._surprisals = surprisals.astype(SurprisalQuantity)
 
     @property
@@ -50,7 +50,7 @@ class HuggingFaceSurprisal(SurprisalArray):
     def surprisals(self) -> np.typing.NDArray[SurprisalQuantity]:
         return self._surprisals
 
-    def __iter__(self) -> typing.Tuple[str, float]:
+    def __iter__(self) -> typing.Tuple[str, SurprisalQuantity]:
         return zip(self.tokens, self.surprisals)
 
     def __getitem__(
@@ -96,7 +96,7 @@ class NGramSurprisal(HuggingFaceSurprisal):
 
     def __init__(
         self,
-        tokens: typing.List[CustomEncoding],
+        tokens: CustomEncoding,
         surprisals: np.ndarray,
     ) -> None:
         super().__init__(tokens, surprisals.astype(SurprisalQuantity))

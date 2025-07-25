@@ -470,7 +470,7 @@ class AutoModel(Model):
     @classmethod
     def from_pretrained(
         cls, model_id_or_path, model_class: str = None, **kwargs
-    ) -> typing.Union[HuggingFaceModel, OpenAIModel]:
+    ) -> typing.Union[HuggingFaceModel]:
         """
         kwargs gives the user an opportunity to specify
         the OpenAI API key and organization information
@@ -479,20 +479,20 @@ class AutoModel(Model):
         model_class = model_class or ""
         model_string = model_class.lower() + " " + model_id_or_path.lower()
 
-        if (
-            "gpt3" in model_string
-            or "openai" in model_string
-            or model_id_or_path.lower() in openai_models_list
-        ):
-            if "gpt3" in model_class:
-                logger.warn(
-                    'DEPRECATION WARNING: please use "openai" as the model class. '
-                    'using "gpt3" as the model class will be deprecated in the future.'
-                )
+        # if (
+        #     "gpt3" in model_string
+        #     or "openai" in model_string
+        #     or model_id_or_path.lower() in openai_models_list
+        # ):
+        #     if "gpt3" in model_class:
+        #         logger.warn(
+        #             'DEPRECATION WARNING: please use "openai" as the model class. '
+        #             'using "gpt3" as the model class will be deprecated in the future.'
+        #         )
 
-            return OpenAIModel(model_id_or_path, **kwargs)
+        #     return OpenAIModel(model_id_or_path, **kwargs)
 
-        elif "gpt" in model_string or "causal" in model_string:
+        if "gpt" in model_string or "causal" in model_string:
             if "gpt" in model_class:
                 logger.warn(
                     'DEPRECATION WARNING: please use "causal" as the model class. '
