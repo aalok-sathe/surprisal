@@ -22,16 +22,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
       # ADJUST THIS: install all dependencies (including pdoc)
       # install poetry
       - run: sudo apt install curl
-      - run: curl -sSL https://install.python-poetry.org | python3 -
-      - run: poetry install -E all --with docs
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - run: uv pip install .[transformers,kenlm,petals]
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
-      - run: poetry run pdoc -o docs/ surprisal
+      - run: uv run pdoc -o docs/ surprisal
 
       - name: Download artifact from pylint
         uses: dawidd6/action-download-artifact@v2
