@@ -1,9 +1,8 @@
 # surprisal
 Compute surprisal from language models!
 
-[`surprisal`](https://github.com/aalok-sathe/surprisal) supports most Causal Language Models (`GPT2`- and `GPTneo`-like models) from Huggingface or local checkpoint, 
-as well as `GPT3` models from OpenAI using their API! We also support `KenLM` N-gram based language models using the
-KenLM Python interface.
+[`surprisal`](https://github.com/aalok-sathe/surprisal) supports most Causal Language Models (`GPT2`- and `Llama`-like models) from Huggingface or local checkpoint, `petals` distributed models, 
+as well as `KenLM`-based N-gram language models using the [KenLM Python interface](https://github.com/kpu/kenlm).
 
 Masked Language Models (`BERT`-like models) are in the pipeline and will be supported at a future time (see [#9](https://github.com/aalok-sathe/surprisal/pull/9)).
 
