@@ -30,7 +30,7 @@ def hf_pick_matching_token_ixs(
         or (
             len(encoding.ids)
             if span_type == "word"
-            else encoding.token_to_chars((len(encoding.ids) - 1)).end
+            else encoding.token_to_chars((len(encoding.ids) - 1))[1]
         ),
         span_of_interest.step,
     )
@@ -64,9 +64,9 @@ def hf_pick_matching_token_ixs(
             elif word > span_of_interest.stop:
                 break
 
-    assert end_token - start_token <= len(
-        encoding.ids
-    ), "Extracted span is larger than original span"
+    assert end_token - start_token <= len(encoding.ids), (
+        "Extracted span is larger than original span"
+    )
 
     return slice(start_token, end_token)
 
