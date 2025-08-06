@@ -154,6 +154,7 @@ class HuggingFaceModel(Model):
                 device_map="auto",
                 quantization_config=bnb_config,
             )
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         else:
             self.model: PreTrainedModel = model_class.from_pretrained(
