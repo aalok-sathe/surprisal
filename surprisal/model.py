@@ -143,6 +143,7 @@ class HuggingFaceModel(Model):
             self.model_id,
             torch_dtype=precisions[precision],
             trust_remote_code=trust_remote_code,
+            device_map="auto",
         )
         self.model.eval()
         self.to(device)  # initializes a variable called `device`
