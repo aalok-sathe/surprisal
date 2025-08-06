@@ -125,6 +125,7 @@ class HuggingFaceModel(Model):
         precision: str = "fp32",
         device_map: str = "auto",
         trust_remote_code: bool = False,
+        eight_bit: bool = False,
     ) -> None:
         super().__init__(model_id)
         import torch  # pylint: disable=import-outside-toplevel
@@ -140,14 +141,29 @@ class HuggingFaceModel(Model):
             )
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         # self.model_class = model_class
-        self.model: PreTrainedModel = model_class.from_pretrained(
-            self.model_id,
-            torch_dtype=precisions[precision],
-            trust_remote_code=trust_remote_code,
-            device_map=device_map,
-        )
+
+        if eight_bit:
+            from transformers import BitsAndBytesConfig
+
+            bnb_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+            )
+            self.model: PreTrainedModel = model_class.from_pretrained(
+                model_id,
+                torch_dtype=torch.float16,
+                device_map="auto",
+                quantization_config=bnb_config,
+            )
+
+        else:
+            self.model: PreTrainedModel = model_class.from_pretrained(
+                self.model_id,
+                torch_dtype=precisions[precision],
+                trust_remote_code=trust_remote_code,
+                device_map=device_map,
+            )
+            self.to(device)  # initializes a variable called `device`
         self.model.eval()
-        self.to(device)  # initializes a variable called `device`
 
     def to(self, device: str):
         """
