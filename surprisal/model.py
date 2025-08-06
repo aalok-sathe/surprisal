@@ -123,6 +123,7 @@ class HuggingFaceModel(Model):
         model_class: typing.Callable,
         device: str = "cpu",
         precision: str = "fp32",
+        device_map: str = "auto",
         trust_remote_code: bool = False,
     ) -> None:
         super().__init__(model_id)
@@ -143,7 +144,7 @@ class HuggingFaceModel(Model):
             self.model_id,
             torch_dtype=precisions[precision],
             trust_remote_code=trust_remote_code,
-            device_map="auto",
+            device_map=device_map,
         )
         self.model.eval()
         self.to(device)  # initializes a variable called `device`
@@ -495,7 +496,7 @@ class AutoModel(Model):
 
         if "gpt" in model_string or "causal" in model_string:
             if "gpt" in model_class:
-                logger.warn(
+                logger.warning(
                     'DEPRECATION WARNING: please use "causal" as the model class. '
                     'using "gpt" as the model class will be deprecated in the future.'
                 )
@@ -507,7 +508,7 @@ class AutoModel(Model):
 
         elif "bert" in model_string or "masked" in model_string:
             if "bert" in model_class:
-                logger.warn(
+                logger.warning(
                     'DEPRECATION WARNING: please use "masked" as the model class. '
                     'using "bert" as the model class will be deprecated in the future.'
                 )
