@@ -305,40 +305,93 @@ class MaskedHuggingFaceModel(HuggingFaceModel):
         textbatch: typing.Union[typing.List, str],
         bidirectional=False,
         fixed_length=False,
-    ) -> HuggingFaceSurprisal:
-        import torch
+    ) -> typing.List[HuggingFaceSurprisal]:
+        """provides a measure of surprisal for `textbatch` using Pseudo Log-Likelihood (PLL)
+
+        For each token in the input (excluding the leading [CLS] special token), the token
+        is masked and the model predicts the masked token given all other tokens in context.
+        The negative log probability of the original token under this distribution is returned
+        as the surprisal.
+
+        Args:
+            textbatch (typing.Union[typing.List, str]): either a single string or a list-like of
+                strings (batch).
+            bidirectional (bool): unused, reserved for future use.
+            fixed_length (bool): unused, reserved for future use.
+
+        Returns:
+            typing.List[HuggingFaceSurprisal]: a list of `HuggingFaceSurprisal` instances. each
+                list item corresponds to one input in `textbatch`.
+        """
+
+        if type(textbatch) is str:
+            textbatch = [textbatch]
 
         tokenized = self.tokenize(textbatch)
-        mask_id = self.tokenizer.mask_token_id
 
-        # BERT-like tokenizers already include a bos token in the tokenized sequence with
-        # `include_special_tokens=True`
-        ids_with_bos_token = tokenized.input_ids
-        b, n = ids_with_bos_token.shape
+        # BERT-like tokenizers already include [CLS] at position 0 and [SEP] at the end
+        # with `add_special_tokens=True`
+        ids = tokenized.input_ids
+        b, n = ids.shape
 
-        # new shape: b * n, n
-        ids_with_bos_token = ids_with_bos_token.repeat(1, n - 1).view(b * (n - 1), n)
+        # For each position from 1 to n-1, create a version of each sequence where that
+        # position is replaced with [MASK]. Total: b*(n-1) sequences of length n.
+        # new shape: b*(n-1), n
+        ids_expanded = ids.repeat(1, n - 1).view(b * (n - 1), n)
+        # mask_mask[i, j] is True if row i should have position j masked:
+        # row 0 masks position 1, row 1 masks position 2, ..., row n-2 masks position n-1
         mask_mask = torch.eye(n, n)[1:, :].repeat(b, 1).bool()
-        ids_with_bos_token[mask_mask] = self.tokenizer.mask_token_id
+        ids_expanded[mask_mask] = self.tokenizer.mask_token_id
 
-        # below is from ckauf and neuranna?
-        # if "within_word_l2r" == PLL_metric:
-        #     """
-        #     Future tokens belonging to the same word as the target token are masked during token inference as well.
-        #     """
-        #     mask_indices = [
-        #         [mask_pos]
-        #         + [
-        #             j
-        #             for j in range(mask_pos + 1, effective_length + 2)
-        #             if word_ids[j] == word_ids[mask_pos]
-        #         ]
-        #         if word_ids[mask_pos] is not None
-        #         else [mask_pos]
-        #         for mask_pos in range(effective_length + 2)
-        #     ]
+        # Expand the attention mask correspondingly
+        attn_mask_expanded = tokenized.attention_mask.repeat(1, n - 1).view(b * (n - 1), n)
 
-        raise NotImplementedError
+        ids_expanded = ids_expanded.to(self.device)
+        attn_mask_expanded = attn_mask_expanded.to(self.device)
+
+        with torch.no_grad():
+            output = self.model(
+                input_ids=ids_expanded,
+                attention_mask=attn_mask_expanded,
+                return_dict=True,
+            )
+
+        # logits shape: b*(n-1), n, V
+        logits = output["logits"]
+        logsoftmax = torch.log_softmax(logits, dim=-1)
+
+        # Reshape to: b, n-1, n, V
+        logsoftmax = logsoftmax.view(b, n - 1, n, -1)
+
+        # For row i (0-indexed, 0 <= i <= n-2), position i+1 was masked.
+        # Extract the log-prob distribution at the masked position for each row:
+        # logsoftmax[:, i, i+1, :] -> shape b, V  (for each i)
+        # Stack these into a tensor of shape b, n-1, V
+        logprobs_at_masked = torch.stack(
+            [logsoftmax[:, i, i + 1, :] for i in range(n - 1)], dim=1
+        )
+
+        # Gather the log prob of the original token at each masked position.
+        # Original token at position p (1 <= p <= n-1) is ids[:, p].
+        target_ids = ids.to(self.device)[:, 1:].unsqueeze(2)  # b, n-1, 1
+        logprobs = logprobs_at_masked.gather(2, target_ids).squeeze(2)  # b, n-1
+
+        # Prepend NaN for position 0 ([CLS] token, which is never masked)
+        logprobs = torch.cat(
+            [torch.full((b, 1), float("nan"), device=self.device), logprobs], dim=1
+        )  # b, n
+
+        tokenized = tokenized.to(self.device)
+
+        accumulator = []
+        for b_i in range(b):
+            accumulator += [
+                HuggingFaceSurprisal(
+                    tokens=tokenized[b_i],
+                    surprisals=-logprobs[b_i, :].cpu().float().numpy(),
+                )
+            ]
+        return accumulator
 
 
 class OpenAIModel(HuggingFaceModel):

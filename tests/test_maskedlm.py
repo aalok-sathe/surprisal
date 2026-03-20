@@ -1,7 +1,8 @@
 """
-Tests for CausalLM-based surprisal models
+Tests for MaskedLM-based surprisal models
 """
 
+import math
 import pytest
 
 
@@ -13,27 +14,19 @@ def test_init_model(model_id):
 
 
 @pytest.mark.parametrize(
-    "model_id, stim_plaus, stim_implaus, expected_surp_plaus, expected_surp_implaus",
-    [
-        (
-            "bert-base-uncased",
-            "The cat sat on the mat.",
-            "The mat sat on the cat.",
-            0,
-            float("inf"),
-        )
-    ],
+    "model_id, stim",
+    [("bert-base-uncased", "The cat sat on the mat.")],
 )
-def test_compute_surprisal_absolute(
-    model_id, stim_plaus, stim_implaus, expected_surp_plaus, expected_surp_implaus
-):
+def test_compute_surprisal_sanity(model_id, stim):
+    """Verify that per-token surprisals are finite, non-negative numbers."""
     import surprisal
 
     m = surprisal.MaskedHuggingFaceModel(model_id=model_id)
-    [surp_plaus, surp_implaus] = m.surprise([stim_plaus, stim_implaus])
+    [surp] = m.surprise([stim])
 
-    assert abs(surp_plaus[0 : len(stim_plaus)] - expected_surp_plaus) < 1e-5
-    assert abs(surp_implaus[0 : len(stim_implaus)] - expected_surp_implaus) < 1e-5
+    total = surp[0 : len(stim)]
+    assert math.isfinite(total), f"Expected finite total surprisal, got {total}"
+    assert total > 0, f"Expected positive total surprisal, got {total}"
 
 
 @pytest.mark.parametrize(
