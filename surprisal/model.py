@@ -297,98 +297,140 @@ class DistributedBloomModel(CausalHuggingFaceModel):
 
 
 class MaskedHuggingFaceModel(HuggingFaceModel):
-    def __init__(self, model_id=None) -> None:
-        super().__init__(model_id, model_class=AutoModelForMaskedLM)
+    """
+    A class to support bidirectional masked language models (BERT-like encoders).
+
+    Because these models are not autoregressive, there is no left-to-right factorization
+    of the sequence probability to read surprisal off of. Instead we use pseudo-log-likelihood
+    (PLL; Salazar et al., 2020): each token is masked in turn and scored conditional on the
+    rest of the sequence. See `surprise` for the available PLL variants.
+    """
+
+    def __init__(self, model_id=None, **kwargs) -> None:
+        if "model_class" not in kwargs:
+            kwargs.update(dict(model_class=AutoModelForMaskedLM))
+        super().__init__(model_id, **kwargs)
 
     def surprise(
         self,
         textbatch: typing.Union[typing.List, str],
-        bidirectional=False,
-        fixed_length=False,
+        pll_metric: str = "within_word_l2r",
+        batch_size: int = 64,
     ) -> typing.List[HuggingFaceSurprisal]:
-        """provides a measure of surprisal for `textbatch` using Pseudo Log-Likelihood (PLL)
+        """provides a measure of surprisal using pseudo-log-likelihood (PLL)
 
-        For each token in the input (excluding the leading [CLS] special token), the token
-        is masked and the model predicts the masked token given all other tokens in context.
-        The negative log probability of the original token under this distribution is returned
-        as the surprisal.
+        Each non-special token is replaced by the `mask_token` in turn, and its surprisal is
+        the negative log probability the model assigns to the original token at that position
+        given the rest of the sequence. Special tokens (`[CLS]`, `[SEP]`, ...) and padding
+        receive `NaN`, mirroring how `CausalHuggingFaceModel` treats the `bos_token`.
 
         Args:
             textbatch (typing.Union[typing.List, str]): either a single string or a list-like of
                 strings (batch).
-            bidirectional (bool): unused, reserved for future use.
-            fixed_length (bool): unused, reserved for future use.
+            pll_metric (str, optional): which PLL variant to use. Defaults to `"within_word_l2r"`.
+
+                - `"original"`: mask only the target token (Salazar et al., 2020). Words that are
+                  split into several subword tokens are scored far too confidently under this
+                  metric, since the remaining subwords of the same word give the identity of the
+                  masked one away (e.g. predicting `##ter` from an unmasked `glit`).
+                - `"within_word_l2r"`: additionally mask every *later* token belonging to the same
+                  word as the target (Kauf & Ivanova, 2023). This removes the within-word leak
+                  while keeping the preceding subwords of the word as context. Requires a fast
+                  tokenizer; falls back to `"original"` with a warning otherwise.
+            batch_size (int, optional): how many masked copies to forward at once. PLL requires one
+                forward pass per token, so a batch of texts expands to `sum(len(text))` sequences;
+                this bounds peak memory. Defaults to 64.
 
         Returns:
-            typing.List[HuggingFaceSurprisal]: a list of `HuggingFaceSurprisal` instances. each
-                list item corresponds to one input in `textbatch`.
+            typing.List[HuggingFaceSurprisal]: a list of `HuggingFaceSurprisal` instances. each list
+                item corresponds to one input in `textbatch`.
         """
-
-        if type(textbatch) is str:
-            textbatch = [textbatch]
-
-        tokenized = self.tokenize(textbatch)
-
-        # BERT-like tokenizers already include [CLS] at position 0 and [SEP] at the end
-        # with `add_special_tokens=True`
-        ids = tokenized.input_ids
-        b, n = ids.shape
-
-        # For each position from 1 to n-1, create a version of each sequence where that
-        # position is replaced with [MASK]. Total: b*(n-1) sequences of length n.
-        # new shape: b*(n-1), n
-        ids_expanded = ids.repeat(1, n - 1).view(b * (n - 1), n)
-        # mask_mask[i, j] is True if row i should have position j masked:
-        # row 0 masks position 1, row 1 masks position 2, ..., row n-2 masks position n-1
-        mask_mask = torch.eye(n, n)[1:, :].repeat(b, 1).bool()
-        ids_expanded[mask_mask] = self.tokenizer.mask_token_id
-
-        # Expand the attention mask correspondingly
-        attn_mask_expanded = tokenized.attention_mask.repeat(1, n - 1).view(b * (n - 1), n)
-
-        ids_expanded = ids_expanded.to(self.device)
-        attn_mask_expanded = attn_mask_expanded.to(self.device)
-
-        with torch.no_grad():
-            output = self.model(
-                input_ids=ids_expanded,
-                attention_mask=attn_mask_expanded,
-                return_dict=True,
+        if pll_metric not in ("original", "within_word_l2r"):
+            raise ValueError(
+                f'`pll_metric` must be one of ("original", "within_word_l2r"), got {pll_metric!r}'
+            )
+        if self.tokenizer.mask_token_id is None:
+            raise ValueError(
+                f"tokenizer for `{self.model_id}` has no mask token; "
+                f"PLL scoring requires a masked language model"
             )
 
-        # logits shape: b*(n-1), n, V
-        logits = output["logits"]
-        logsoftmax = torch.log_softmax(logits, dim=-1)
+        tokenized = self.tokenize(textbatch)
+        ids = tokenized.input_ids
+        attention_mask = tokenized.attention_mask
+        b, n = ids.shape
 
-        # Reshape to: b, n-1, n, V
-        logsoftmax = logsoftmax.view(b, n - 1, n, -1)
+        # only real, non-special tokens are scored. padding is a special token too, but we
+        # intersect with the attention mask as well in case a tokenizer pads with something else.
+        special_ids = torch.tensor(self.tokenizer.all_special_ids, dtype=ids.dtype)
+        special = torch.isin(ids, special_ids)
+        scorable = attention_mask.bool() & ~special
 
-        # For row i (0-indexed, 0 <= i <= n-2), position i+1 was masked.
-        # Extract the log-prob distribution at the masked position for each row:
-        # logsoftmax[:, i, i+1, :] -> shape b, V  (for each i)
-        # Stack these into a tensor of shape b, n-1, V
-        logprobs_at_masked = torch.stack(
-            [logsoftmax[:, i, i + 1, :] for i in range(n - 1)], dim=1
-        )
+        # word_ids[i, j] is the index of the word token j belongs to, or -1 for special tokens.
+        # only fast tokenizers can report this, and we need it for the within-word variant.
+        if pll_metric == "within_word_l2r" and not self.tokenizer.is_fast:
+            logger.warning(
+                'pll_metric="within_word_l2r" requires a fast tokenizer, but the tokenizer '
+                f'for `{self.model_id}` is not fast; falling back to pll_metric="original"'
+            )
+            pll_metric = "original"
+        if pll_metric == "within_word_l2r":
+            word_ids = torch.tensor(
+                [
+                    [-1 if w is None else w for w in tokenized.word_ids(i)]
+                    for i in range(b)
+                ]
+            )
 
-        # Gather the log prob of the original token at each masked position.
-        # Original token at position p (1 <= p <= n-1) is ids[:, p].
-        target_ids = ids.to(self.device)[:, 1:].unsqueeze(2)  # b, n-1, 1
-        logprobs = logprobs_at_masked.gather(2, target_ids).squeeze(2)  # b, n-1
+        # (T,) parallel index vectors: target t lives at position `pos_ix[t]` of item `batch_ix[t]`.
+        # note T == number of scorable tokens, not b * (n - 1): padding costs us no forward passes.
+        batch_ix, pos_ix = scorable.nonzero(as_tuple=True)
+        n_targets = batch_ix.shape[0]
 
-        # Prepend NaN for position 0 ([CLS] token, which is never masked)
-        logprobs = torch.cat(
-            [torch.full((b, 1), float("nan"), device=self.device), logprobs], dim=1
-        )  # b, n
+        logprobs = torch.full((b, n), float("nan"))
 
-        tokenized = tokenized.to(self.device)
+        for start in range(0, n_targets, batch_size):
+            chunk = slice(start, start + batch_size)
+            rows, cols = batch_ix[chunk], pos_ix[chunk]
+            within = torch.arange(rows.shape[0])
+
+            masked_ids = ids[rows].clone()
+            if pll_metric == "within_word_l2r":
+                chunk_word_ids = word_ids[rows]
+                target_word_ids = chunk_word_ids[within, cols].unsqueeze(1)
+                # mask the target, plus any token of the same word that comes after it
+                to_mask = (
+                    (chunk_word_ids == target_word_ids)
+                    & (chunk_word_ids >= 0)
+                    & (torch.arange(n) >= cols.unsqueeze(1))
+                )
+            else:
+                to_mask = torch.zeros_like(masked_ids, dtype=torch.bool)
+                to_mask[within, cols] = True
+            masked_ids[to_mask] = self.tokenizer.mask_token_id
+
+            with torch.no_grad():
+                output = self.model(
+                    input_ids=masked_ids.to(self.device),
+                    attention_mask=attention_mask[rows].to(self.device),
+                    return_dict=True,
+                )
+
+            # read off the distribution at the masked target position only: (chunk, V), rather
+            # than running log_softmax over the full (chunk, n, V) logits.
+            logits_at_target = output["logits"][
+                within.to(self.device), cols.to(self.device)
+            ]
+            logsoftmax = torch.log_softmax(logits_at_target.float(), dim=-1)
+            target_ids = ids[rows, cols].unsqueeze(1).to(self.device)
+            logprobs[rows, cols] = logsoftmax.gather(1, target_ids).squeeze(1).cpu()
 
         accumulator = []
         for b_i in range(b):
             accumulator += [
                 HuggingFaceSurprisal(
                     tokens=tokenized[b_i],
-                    surprisals=-logprobs[b_i, :].cpu().float().numpy(),
+                    surprisals=-logprobs[b_i, :].numpy(),
                 )
             ]
         return accumulator
@@ -514,7 +556,7 @@ class AutoTransformerModel(Model):
             hfm.tokenizer.pad_token = hfm.tokenizer.eos_token
             return hfm
         elif "bert" in model_class.lower() + " " + model_id.lower():
-            return MaskedHuggingFaceModel(model_id)
+            return MaskedHuggingFaceModel(model_id, **kwargs)
         # in order to support the bigscience bloom-petals distributed model, we make a special case.
         elif "petals" in model_class.lower() + " " + model_id.lower():
             hfm = DistributedBloomModel(model_id)
